@@ -35,8 +35,13 @@ class RelayApp : Application() {
     }
 
     fun lanAddress(): String = try {
-        val iface = java.net.NetworkInterface.getNetworkInterfaces().toList()
-            .firstOrNull { it.isUp && !it.isLoopback && it.name in listOf("wlan0", "ap0", "eth0", "rndis0") }
-        iface?.inetAddresses?.asList()?.firstOrNull { it is java.net.Inet4Address }?.hostAddress ?: ""
+        val ifaces = java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())
+        val good = ifaces.firstOrNull { it.isUp && !it.isLoopback &&
+            (it.name.startsWith("wlan") || it.name.startsWith("ap") || it.name.startsWith("eth") || it.name.startsWith("rndis")) }
+            ?: ifaces.firstOrNull { it.isUp && !it.isLoopback }
+        good?.let { g ->
+            java.util.Collections.list(g.inetAddresses)
+                .firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }?.hostAddress
+        } ?: ""
     } catch (_: Exception) { "" }
 }

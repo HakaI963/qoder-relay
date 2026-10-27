@@ -37,9 +37,9 @@ object QoderClient {
     }
 
     class PinDns : Dns {
-        override fun lookup(hostname: String): List<String> {
-            val p = pins[hostname]
-            return if (p != null) p else Dns.SYSTEM.lookup(hostname)
+        override fun lookup(hostname: String): List<java.net.InetAddress> {
+            val p = pins[hostname] ?: return Dns.SYSTEM.lookup(hostname)
+            return p.map { java.net.InetAddress.getByName(it) }
         }
     }
 
@@ -136,13 +136,12 @@ object QoderClient {
                 .url("https://api3.qoder.sh$path")
                 .header("Authorization", "Bearer ${a.token}")
                 .build()
-            try {
-                client.newCall(req).execute().use { r ->
-                    if (!r.isSuccessful) continue
-                    val txt = r.body?.string() ?: continue
-                    return extractKeys(JSONObject(txt))
-                }
-            } catch (_: Exception) { }
+            val resp = try { client.newCall(req).execute() } catch (_: Exception) { continue }
+            resp.use { r ->
+                if (!r.isSuccessful) return@use
+                val txt = r.body?.string() ?: return@use
+                return extractKeys(JSONObject(txt))
+            }
         }
         return emptyList()
     }

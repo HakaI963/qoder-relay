@@ -25,12 +25,12 @@ class RelayEngine(val repo: AccountRepo) {
         val list = usableFor(null)
         val ordered = list.sortedBy { rr.getAndIncrement() % 1000000 }
         val resolved = requestedModel?.let { m ->
-            ordered.firstOrNull { it.serves(m, this) }?.let { it.resolveTo(m) } ?: m
+            ordered.firstOrNull { it.serves(m, this) }?.let { resolveModel(it, m) } ?: m
         } ?: "qfmodel"
         return ordered.filter { it.serves(resolved, this) || ordered.size == 1 } to resolved
     }
 
-    private fun Account.resolveTo(model: String): String {
+    private fun resolveModel(account: Account, model: String): String {
         val prefix = "qoder-"
         if (model.startsWith(prefix)) {
             val bare = model.removePrefix(prefix)

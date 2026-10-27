@@ -23,7 +23,8 @@ class RelayServer(
     private val pendingLogins = ConcurrentHashMap<String, QoderClient.LoginState>()
     private val pendingLoginStatus = ConcurrentHashMap<String, String>()
 
-    private fun qp(session: IHTTPSession, key: String): String? = session.parameters[key]
+    private fun qp(session: IHTTPSession, key: String): String? =
+        session.parameters[key]?.firstOrNull()
 
     override fun serve(session: IHTTPSession): Response {
         val uri = session.uri.trimEnd('/')
@@ -125,7 +126,7 @@ class RelayServer(
                 app.repo.save()
             }
         }
-        return errorJson(Status.BAD_GATEWAY, "upstream_unavailable", lastErr)
+        return errorJson(Status.INTERNAL_ERROR, "upstream_unavailable", lastErr)
     }
 
     private fun event(reqId: String, a: Account, model: String, code: Int, state: String,
@@ -180,6 +181,8 @@ class RelayServer(
             }
 
             private fun settle() {
+                if (settled) return
+                settled = true
                 resp.close()
                 if (usageSeen) {
                     acc.inTok += inTok; acc.outTok += outTok
@@ -375,21 +378,23 @@ class RelayServer(
 
     private fun statusJson() = JSONObject()
         .put("running", true)
-        .put("port", listenPort)
+        .put("port", app.port)
         .put("accounts", app.repo.accounts.size)
         .put("total_in", app.repo.totalIn())
         .put("total_out", app.repo.totalOut())
 
     private fun readBody(session: IHTTPSession): String {
-        val len = session.contentLength.toInt().coerceAtLeast(0)
+        val len = (session.headers["content-length"]?.toLongOrNull() ?: 0L)
+            .coerceIn(0L, 8L * 1024 * 1024).toInt()
+        if (len == 0) return ""
         val bytes = ByteArray(len)
-        var read = 0
-        while (read < len) {
-            val n = session.inputStream.read(bytes, read, len - read)
+        var off = 0
+        while (off < len) {
+            val n = session.inputStream.read(bytes, off, len - off)
             if (n < 0) break
-            read += n
+            off += n
         }
-        return String(bytes, 0, read, StandardCharsets.UTF_8)
+        return String(bytes, 0, off, StandardCharsets.UTF_8)
     }
 
     private fun jsonResponse(s: String): Response =

@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Qoder Relay</title>
+<style>
+/* ====== Palettes from tt.html (Graphite / Warm-Neutral / Midnight-Slate) ====== */
+:root, .theme-graphite {
+  --app-bg:#0D0D0D; --sidebar-bg:#111111; --panel-bg:#171717; --border-color:#292929;
+  --text-primary:#F5F5F5; --text-secondary:#929292; --btn-bg:#F5F5F5; --btn-text:#111111;
+  --hover-surface:rgba(245,245,245,0.05); --code-highlight:rgba(245,245,245,0.04);
+  --ok:#34D399; --warn:#FBBF24; --err:#F87171;
+}
+.theme-warm {
+  --app-bg:#F7F7F5; --sidebar-bg:#F0F0ED; --panel-bg:#FFFFFF; --border-color:#E5E5E0;
+  --text-primary:#171717; --text-secondary:#737373; --btn-bg:#202020; --btn-text:#FFFFFF;
+  --hover-surface:rgba(23,23,23,0.04); --code-highlight:rgba(23,23,23,0.03);
+  --ok:#047857; --warn:#B45309; --err:#B91C1C;
+}
+.theme-midnight {
+  --app-bg:#101114; --sidebar-bg:#141519; --panel-bg:#191B20; --border-color:#2A2C32;
+  --text-primary:#EDEEF0; --text-secondary:#9699A2; --btn-bg:#EDEEF0; --btn-text:#101114;
+  --hover-surface:rgba(237,238,240,0.05); --code-highlight:rgba(237,238,240,0.04);
+  --ok:#6EE7B7; --warn:#FCD34D; --err:#FCA5A5;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{
+  font-family:"IBM Plex Sans",-apple-system,"Segoe UI",Roboto,sans-serif;
+  background:var(--app-bg); color:var(--text-primary); line-height:1.5;
+  -webkit-font-smoothing:antialiased; transition:background .2s,color .2s;
+}
+.mono{font-family:"JetBrains Mono","Fira Code",Consolas,monospace}
+/* ====== Layout ====== */
+.shell{display:flex;min-height:100vh}
+.side{width:210px;background:var(--sidebar-bg);border-right:1px solid var(--border-color);
+  padding:18px 12px;display:flex;flex-direction:column;gap:4px;position:sticky;top:0;height:100vh}
+.brand{display:flex;align-items:center;gap:9px;padding:4px 10px 18px;font-weight:600;letter-spacing:-.01em}
+.brand svg{width:22px;height:22px;flex:none}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav button{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:none;border:0;
+  color:var(--text-secondary);padding:10px 12px;border-radius:8px;font-size:14px;cursor:pointer;transition:all .15s}
+.nav button:hover{background:var(--hover-surface);color:var(--text-primary)}
+.nav button.on{background:var(--hover-surface);color:var(--text-primary);font-weight:600}
+.nav svg{width:17px;height:17px;flex:none}
+.side .spacer{flex:1}
+.theme-row{display:flex;gap:6px;padding:10px 8px 0}
+.swatch{width:26px;height:26px;border-radius:7px;border:1px solid var(--border-color);cursor:pointer}
+.swatch.on{outline:2px solid var(--text-primary);outline-offset:2px}
+.main{flex:1;padding:26px 30px;max-width:1100px}
+h1{font-size:21px;letter-spacing:-.02em;margin-bottom:4px}
+.sub{color:var(--text-secondary);font-size:13.5px;margin-bottom:22px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-bottom:22px}
+.card{background:var(--panel-bg);border:1px solid var(--border-color);border-radius:12px;padding:16px 18px}
+.card h3{font-size:12px;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.big{font-size:26px;font-weight:700;letter-spacing:-.02em}
+.acc{display:flex;flex-direction:column;gap:10px}
+.acc-row{background:var(--panel-bg);border:1px solid var(--border-color);border-radius:12px;padding:14px 16px;
+  display:flex;gap:12px;align-items:center;transition:box-shadow .15s}
+.acc-row.bad{border-left:3px solid var(--err)}
+.acc-row.ok{border-left:3px solid var(--ok)}
+.acc-name{font-weight:600}
+.acc-meta{font-size:12.5px;color:var(--text-secondary)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.dot.ok{background:var(--ok)} .dot.err{background:var(--err)} .dot.unknown{background:var(--text-secondary)}
+.btn{background:var(--btn-bg);color:var(--btn-text);border:0;border-radius:8px;padding:9px 14px;
+  font-size:13.5px;font-weight:600;cursor:pointer;transition:opacity .15s;display:inline-flex;align-items:center;gap:7px}
+.btn:hover{opacity:.85}
+.btn.ghost{background:transparent;color:var(--text-primary);border:1px solid var(--border-color)}
+.btn.danger{background:transparent;color:var(--err);border:1px solid var(--border-color)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+input,select{background:var(--app-bg);border:1px solid var(--border-color);color:var(--text-primary);
+  border-radius:8px;padding:9px 12px;font-size:14px;min-width:0}
+input:focus,select:focus{outline:2px solid var(--text-secondary);outline-offset:0}
+pre{background:var(--code-highlight);border:1px solid var(--border-color);border-radius:10px;
+  padding:14px;overflow:auto;font-size:12.5px;position:relative}
+.chips{display:flex;flex-wrap:wrap;gap:7px}
+.chip{border:1px solid var(--border-color);background:var(--hover-surface);border-radius:20px;
+  padding:5px 12px;font-size:12.5px;cursor:pointer;display:flex;align-items:center;gap:6px;transition:all .15s}
+.chip.on{background:var(--btn-bg);color:var(--btn-text);border-color:var(--btn-bg)}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{color:var(--text-secondary);font-weight:600;text-align:left;padding:8px 10px;border-bottom:1px solid var(--border-color);font-size:11.5px;text-transform:uppercase;letter-spacing:.05em}
+td{padding:8px 10px;border-bottom:1px solid var(--border-color)}
+.bar{height:7px;border-radius:4px;background:var(--hover-surface);overflow:hidden}
+.bar i{display:block;height:100%;background:var(--btn-bg);border-radius:4px;transition:width .3s}
+.copy{position:absolute;top:8px;right:8px;font-size:11px;padding:4px 9px}
+.page{display:none}.page.on{display:block}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--panel-bg);
+  border:1px solid var(--border-color);padding:10px 18px;border-radius:10px;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;z-index:5}
+.toast.on{opacity:1}
+label.f{font-size:12.5px;color:var(--text-secondary);display:block;margin:12px 0 5px}
+.switch{position:relative;width:40px;height:22px;flex:none}
+.switch input{opacity:0;width:0;height:0}
+.slider{position:absolute;inset:0;background:var(--border-color);border-radius:22px;cursor:pointer;transition:.2s}
+.slider:before{content:"";position:absolute;width:16px;height:16px;left:3px;top:3px;background:var(--panel-bg);border-radius:50%;transition:.2s}
+.switch input:checked + .slider{background:var(--ok)}
+.switch input:checked + .slider:before{transform:translateX(18px)}
+@media(max-width:760px){.shell{flex-direction:column}.side{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap}
+ .nav{flex-direction:row}.main{padding:18px}}
+</style>
+</head>
+<body class="theme-graphite">
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12h4l3-8 3 16 3-8h3"/></svg>
+      Qoder&nbsp;Relay
+    </div>
+    <nav class="nav" id="nav">
+      <button data-p="overview" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Overview</button>
+      <button data-p="accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c1-4 4-5.5 6.5-5.5s5.5 1.5 6.5 5.5"/><circle cx="17.5" cy="9.5" r="2.5"/><path d="M15.5 14.7c2.7.3 5.2 1.7 6 5.3"/></svg>Accounts</button>
+      <button data-p="models"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M12 12l8-4.5M12 12v9M12 12L4 7.5"/></svg>Models</button>
+      <button data-p="connect"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"/></svg>Connect</button>
+      <button data-p="usage"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 21h18M6 17v-5M11 17V8M16 17v-7M21 17V5"/></svg>Usage</button>
+      <button data-p="log"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Requests</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="theme-row" title="Theme">
+      <div class="swatch on" data-th="theme-graphite" style="background:#111" aria-label="Graphite theme"></div>
+      <div class="swatch" data-th="theme-warm" style="background:#F7F7F5" aria-label="Warm neutral theme"></div>
+      <div class="swatch" data-th="theme-midnight" style="background:#191B20" aria-label="Midnight slate theme"></div>
+    </div>
+  </aside>
+
+  <main class="main">
+    <!-- OVERVIEW -->
+    <section class="page on" id="p-overview">
+      <h1>Overview</h1><div class="sub">One OpenAI-compatible endpoint, pooled across your Qoder accounts.</div>
+      <div class="grid">
+        <div class="card"><h3>Accounts</h3><div class="big" id="ov-acc">–</div></div>
+        <div class="card"><h3>Tokens in</h3><div class="big mono" id="ov-in">–</div></div>
+        <div class="card"><h3>Tokens out</h3><div class="big mono" id="ov-out">–</div></div>
+        <div class="card"><h3>Requests</h3><div class="big mono" id="ov-req">–</div></div>
+      </div>
+      <div class="card">
+        <h3>Endpoint status</h3>
+        <div class="row" style="justify-content:space-between">
+          <span class="mono" style="font-size:14px" id="ov-url">http://…</span>
+          <span id="ov-state">…</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- ACCOUNTS -->
+    <section class="page" id="p-accounts">
+      <h1>Accounts</h1><div class="sub">Add Qoder accounts via browser sign-in or a Personal Access Token. The relay balances and fails over automatically.</div>
+      <div class="card" style="margin-bottom:16px">
+        <div class="row">
+          <button class="btn" id="btn-device"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>Sign in with Qoder</button>
+          <button class="btn ghost" id="btn-pat"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 7a4 4 0 1 0-3.9 5L12 14l-2 2H7l-3 3"/></svg>Add PAT (pt-…)</button>
+          <select id="region"><option value="global">Region: global (qoder.com)</option><option value="cn">Region: cn (qoder.com.cn)</option></select>
+        </div>
+        <div id="login-box" style="display:none;margin-top:14px">
+          <div class="sub" style="margin-bottom:8px">Open this link and approve the sign-in — same flow as the CLI:</div>
+          <pre class="mono" id="login-url" style="font-size:11.5px;word-break:break-all"></pre>
+          <div class="row" style="margin-top:8px">
+            <button class="btn" id="login-open">Open link</button>
+            <button class="btn ghost" id="login-copy">Copy</button>
+            <span id="login-status" class="acc-meta">waiting…</span>
+          </div>
+        </div>
+        <div id="pat-box" style="display:none;margin-top:14px">
+          <label class="f">Personal Access Token — create at qoder.com → Account → Integrations</label>
+          <div class="row"><input id="pat-input" class="mono" placeholder="pt-…" style="flex:1" type="password"><input id="pat-label" placeholder="label" style="width:130px"><button class="btn" id="pat-add">Add</button></div>
+        </div>
+      </div>
+      <div class="acc" id="acc-list"></div>
+    </section>
+
+    <!-- MODELS -->
+    <section class="page" id="p-models">
+      <h1>Models</h1><div class="sub">Universal models are served by any account. Per-account models pin a model to a specific account.</div>
+      <div class="card" style="margin-bottom:14px"><h3>Universal pool</h3><div class="chips" id="cat-universal"></div></div>
+      <div id="cat-accounts"></div>
+    </section>
+
+    <!-- CONNECT -->
+    <section class="page" id="p-connect">
+      <h1>Connect</h1><div class="sub">Point any OpenAI-compatible client at the relay. The key below is your relay API key.</div>
+      <div class="card" style="margin-bottom:14px"><h3>Base URL</h3>
+        <pre class="mono"><code id="conn-base">…</code><button class="btn ghost copy" onclick="copyText(el('conn-base').textContent)">copy</button></pre></div>
+      <div class="card" style="margin-bottom:14px"><h3>API key</h3>
+        <pre class="mono"><code id="conn-key">…</code><button class="btn ghost copy" onclick="copyText(el('conn-key').textContent)">copy</button></pre></div>
+      <div class="card"><h3>Example</h3>
+        <pre class="mono"><code id="conn-curl">…</code><button class="btn ghost copy" onclick="copyText(el('conn-curl').textContent)">copy</button></pre>
+        <div class="sub" style="margin-top:10px">Works with OpenAI SDKs: <span class="mono">base_url=&lt;above&gt;, api_key=&lt;relay key&gt;</span>. Pin an account with model="…" + body "relay_account": &lt;id&gt;.</div>
+      </div>
+    </section>
+
+    <!-- USAGE -->
+    <section class="page" id="p-usage">
+      <h1>Usage</h1><div class="sub">Total tokens in / out across all accounts.</div>
+      <div class="grid">
+        <div class="card"><h3>Total in</h3><div class="big mono" id="us-in">–</div></div>
+        <div class="card"><h3>Total out</h3><div class="big mono" id="us-out">–</div></div>
+        <div class="card"><h3>Requests</h3><div class="big mono" id="us-req">–</div></div>
+        <div class="card"><h3>Failovers</h3><div class="big mono" id="us-fo">–</div></div>
+      </div>
+      <div class="card"><h3>Per account</h3><div id="us-table"></div></div>
+    </section>
+
+    <!-- LOG -->
+    <section class="page" id="p-log">
+      <h1>Requests</h1><div class="sub">Recent relay calls with routing and token accounting.</div>
+      <div class="card"><table id="log-table"><thead><tr>
+        <th>time</th><th>account</th><th>model</th><th>state</th><th>in</th><th>out</th><th>ms</th></tr></thead><tbody></tbody></table></div>
+    </section>
+  </main>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const el = id => document.getElementById(id);
+const KEY = (window.Relay && Relay.key()) || "";
+const PORT = (window.Relay && Relay.port()) || 8788;
+const LAN = (window.Relay && Relay.lan()) || "";
+const API = loc => "http://" + (loc ? "127.0.0.1:" + PORT : (LAN || "<device-ip>") + ":" + PORT);
+const H = {headers:{Accept:"application/json","X-Relay-Key":KEY,"Content-Type":"application/json"}};
+const fmt = n => n>=1e6 ? (n/1e6).toFixed(2)+"M" : n>=1e3 ? (n/1e3).toFixed(1)+"k" : ""+n;
+let STATE = {accounts:[],usage:null};
+
+function toast(m){const t=el("toast");t.textContent=m;t.classList.add("on");setTimeout(()=>t.classList.remove("on"),1800);}
+async function req(p,opt={}){const r=await fetch(p,{...opt,headers:{...H.headers,...(opt.headers||{})}});
+  const j=await r.json().catch(()=>({})); if(!r.ok) throw new Error(j.error?j.error.message:r.status); return j;}
+function copyText(t){if(window.Relay){/* handled by webview clipboard */}
+  const ta=document.createElement("textarea");ta.value=t;document.body.appendChild(ta);ta.select();
+  try{document.execCommand("copy");toast("copied");}catch(e){}ta.remove();}
+
+/* nav */
+el("nav").addEventListener("click",e=>{const b=e.target.closest("button");if(!b)return;
+  document.querySelectorAll(".nav button").forEach(x=>x.classList.remove("on"));
+  document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));
+  b.classList.add("on"); el("p-"+b.dataset.p).classList.add("on"); refresh();});
+/* theme */
+document.querySelectorAll(".swatch").forEach(s=>s.addEventListener("click",()=>{
+  document.body.className=s.dataset.th; localStorage.setItem("theme",s.dataset.th);
+  document.querySelectorAll(".swatch").forEach(x=>x.classList.remove("on")); s.classList.add("on");}));
+const saved=localStorage.getItem("theme");
+if(saved){document.body.className=saved;document.querySelectorAll(".swatch").forEach(x=>x.classList.toggle("on",x.dataset.th===saved));}
+
+async function refresh(){
+  try{
+    STATE.accounts = await req("/relay/accounts");
+    STATE.usage = await req("/relay/usage");
+    const st = await req("/relay/status");
+    renderOverview(); renderAccounts(); renderUsage(); renderLog(); renderModels(); renderConnect();
+  }catch(e){ el("ov-state").textContent = "error: " + e.message; }
+}
+
+function renderOverview(){
+  const a=STATE.accounts, u=STATE.usage;
+  el("ov-acc").textContent=a.length;
+  el("ov-in").textContent=fmt(u.total_in); el("ov-out").textContent=fmt(u.total_out);
+  el("ov-req").textContent=fmt(a.reduce((s,x)=>s+x.reqs,0));
+  el("ov-url").textContent=API(true)+"/v1";
+  el("ov-state").textContent=window.Relay?"● running":"● open on device";
+}
+
+function accRow(a){
+  const ok=a.status==="active", bad=a.status==="auth_error"||a.status==="error";
+  const div=document.createElement("div");
+  div.className="acc-row "+(ok?"ok":bad?"bad":"");
+  div.innerHTML=`<span class="dot ${ok?"ok":bad?"err":"unknown"}"></span>
+   <div style="flex:1">
+     <div class="acc-name">${esc(a.label)} <span class="acc-meta mono">${a.kind} · ${a.region}</span></div>
+     <div class="acc-meta">${a.reqs} req · ${fmt(a.inTok)} in / ${fmt(a.outTok)} out · ${a.errs} err · ${a.failovers} failover${a.lastError?" · "+esc(a.lastError).slice(0,80):""}</div>
+   </div>
+   <div class="row" style="gap:6px">
+     <label class="switch"><input type="checkbox" ${a.enabled?"checked":""} data-t="en"><span class="slider"></span></label>
+     <button class="btn ghost" data-t="del">Remove</button>
+   </div>`;
+  div.querySelector('[data-t=en]').onchange=async e=>{await req("/relay/accounts/"+a.id,{method:"PUT",headers:H.headers,body:JSON.stringify({enabled:e.target.checked})});refresh();};
+  div.querySelector('[data-t=del]').onclick=async()=>{await req("/relay/accounts/"+a.id,{method:"DELETE",headers:H.headers});refresh();};
+  return div;
+}
+function esc(s){return (""+s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+function renderAccounts(){
+  const wrap=el("acc-list"); wrap.innerHTML="";
+  STATE.accounts.forEach(a=>wrap.appendChild(accRow(a)));
+  if(!STATE.accounts.length) wrap.innerHTML='<div class="sub" style="padding:8px 2px">No accounts yet — add one above.</div>';
+}
+
+/* device login */
+el("btn-device").onclick=async()=>{
+  el("login-box").style.display="block"; el("pat-box").style.display="none";
+  el("login-status").textContent="creating…";
+  try{
+    const r=await req("/relay/device-start",{method:"POST",headers:H.headers,body:JSON.stringify({region:el("region").value,label:suggestName()})});
+    el("login-url").textContent=r.url; el("login-status").textContent="waiting for approval…";
+    el("login-open").onclick=()=>{window.Relay?Relay.openUrl(r.url):window.open(r.url);};
+    el("login-copy").onclick=()=>copyText(r.url);
+    pollLogin(r.login_id);
+  }catch(e){el("login-status").textContent="error: "+e.message;}
+};
+let sn=0; function suggestName(){return "qoder-"+(STATE.accounts.length+1)+(sn?"-"+sn:"");}
+async function pollLogin(id){
+  for(let i=0;i<100;i++){
+    await new Promise(r=>setTimeout(r,2500));
+    let s; try{s=await req("/relay/device-poll?login_id="+id,{headers:H.headers});}catch(e){return;}
+    const v=s.state;
+    if(v.startsWith("ok:")){el("login-status").textContent="signed in ✓"; el("login-box").style.display="none"; refresh(); return;}
+    if(v.startsWith("error:")){el("login-status").textContent=v; return;}
+    el("login-status").textContent="waiting for approval…";
+  }
+  el("login-status").textContent="timed out";
+}
+el("btn-pat").onclick=()=>{el("pat-box").style.display="block";el("login-box").style.display="none";};
+el("pat-add").onclick=async()=>{
+  try{await req("/relay/accounts",{method:"POST",headers:H.headers,body:JSON.stringify({pat:el("pat-input").value,label:el("pat-label").value||suggestName(),region:el("region").value})});
+    el("pat-input").value=""; toast("account added"); refresh();}
+  catch(e){toast(e.message);}
+};
+
+function renderModels(){
+  const all=[...new Set(STATE.accounts.flatMap(a=>a.models.length?a.models:a.discovered))];
+  const u=el("cat-universal"); u.innerHTML="";
+  if(!all.length){u.innerHTML='<span class="sub">No models discovered yet — refresh an account.</span>';}
+  all.forEach(k=>{const c=document.createElement("span");c.className="chip on";c.textContent=k;u.appendChild(c);});
+  const box=el("cat-accounts"); box.innerHTML="";
+  STATE.accounts.forEach(a=>{
+    const card=document.createElement("div");card.className="card";card.style.marginBottom="14px";
+    card.innerHTML=`<h3>${esc(a.label)}</h3>
+      <div class="row" style="margin-bottom:10px">
+        <button class="btn ghost" data-t="rf">Refresh models</button>
+        <label class="row" style="gap:6px;font-size:13px;color:var(--text-secondary)"><span>Universal pool</span>
+        <label class="switch"><input type="checkbox" ${a.universal?"checked":""} data-t="un"><span class="slider"></span></label></label>
+      </div>
+      <div class="sub" style="margin-bottom:6px">Allowed models (none selected = all of the account's models):</div>
+      <div class="chips" data-chips></div>`;
+    const chips=card.querySelector("[data-chips]");
+    (a.discovered.length?a.discovered:a.models).forEach(k=>{
+      const c=document.createElement("span");
+      c.className="chip"+(a.models.includes(k)?" on":"");c.textContent=k;
+      c.onclick=async()=>{
+        const cur=a.models.includes(k)?a.models.filter(x=>x!==k):[...a.models,k];
+        await req("/relay/accounts/"+a.id,{method:"PUT",headers:H.headers,body:JSON.stringify({models:cur,universal:a.universal})});
+        refresh();
+      };
+      chips.appendChild(c);
+    });
+    card.querySelector('[data-t=rf]').onclick=async()=>{
+      await req("/relay/models/refresh",{method:"POST",headers:H.headers,body:JSON.stringify({account:a.id})});
+      toast("models refreshed"); refresh();};
+    card.querySelector('[data-t=un]').onchange=async e=>{
+      await req("/relay/accounts/"+a.id,{method:"PUT",headers:H.headers,body:JSON.stringify({universal:e.target.checked,models:a.models})});refresh();};
+    box.appendChild(card);
+  });
+}
+
+function renderConnect(){
+  const shown=(LAN? "http://"+LAN+":"+PORT : "http://<device-ip>:"+PORT)+"/v1";
+  el("conn-base").textContent=shown;
+  el("conn-key").textContent=KEY;
+  el("conn-curl").textContent=`curl ${shown}/chat/completions \\
+  -H "Authorization: Bearer ${KEY}" \\
+  -H "Content-Type: application/json" \\
+  -d '{"model":"qfmodel","messages":[{"role":"user","content":"ping"}],"stream":true}'`;
+}
+
+function renderUsage(){
+  const u=STATE.usage,a=STATE.accounts;
+  el("us-in").textContent=fmt(u.total_in); el("us-out").textContent=fmt(u.total_out);
+  el("us-req").textContent=fmt(a.reduce((s,x)=>s+x.reqs,0));
+  el("us-fo").textContent=fmt(a.reduce((s,x)=>s+x.failovers,0));
+  const max=Math.max(1,...a.map(x=>x.inTok+x.outTok));
+  el("us-table").innerHTML=`<table><thead><tr><th>Account</th><th>in</th><th>out</th><th>share</th></tr></thead><tbody>`+
+    a.map(x=>`<tr><td>${esc(x.label)}</td><td class="mono">${fmt(x.inTok)}</td><td class="mono">${fmt(x.outTok)}</td>
+      <td style="width:40%"><div class="bar"><i style="width:${(x.inTok+x.outTok)/max*100}%"></i></div></td></tr>`).join("")+`</tbody></table>`;
+}
+
+function renderLog(){
+  const tb=el("log-table").querySelector("tbody");tb.innerHTML="";
+  (STATE.usage.recent||[]).slice(0,60).forEach(e=>{
+    const tr=document.createElement("tr");
+    tr.innerHTML=`<td class="mono">${new Date(e.ts).toLocaleTimeString()}</td><td>${esc(e.account)}</td>
+      <td class="mono">${esc(e.model)}</td><td class="mono" style="color:${e.state==="ok"?"var(--ok)":e.state==="failover"?"var(--warn)":"var(--err)"}">${e.state}</td>
+      <td class="mono">${fmt(e.in)}</td><td class="mono">${fmt(e.out)}</td><td class="mono">${e.ms}</td>`;
+    tb.appendChild(tr);
+  });
+}
+
+setInterval(refresh,5000); refresh();
+</script>
+</body>
+</html>

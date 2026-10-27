@@ -668,7 +668,7 @@ class SettingsFragment : Fragment() {
         portRow.addView(MaterialButton(requireContext()).apply {
             text = "apply"; setOnClickListener {
                 val p = portEdit.text.toString().toIntOrNull() ?: 0
-                app.setPort(p); rebuild(); toast("port " + app.port)
+                app.changePort(p); rebuild(); toast("port " + app.port)
             }
         })
         val portCard = requireContext().textCard("server port", "")

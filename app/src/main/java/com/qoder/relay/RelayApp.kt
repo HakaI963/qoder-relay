@@ -38,7 +38,7 @@ class RelayApp : Application() {
     var serverError: String = ""
     fun isRunning(): Boolean = server != null
 
-    fun setPort(newPort: Int) {
+    fun changePort(newPort: Int) {
         if (newPort in 1024..65534 && newPort != port) {
             port = newPort
             getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putInt("port", newPort).apply()

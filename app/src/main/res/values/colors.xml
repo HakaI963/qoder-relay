@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="ic_bg">#0D0D0D</color>
     <color name="gr_bg">#0D0D0D</color>
     <color name="gr_surface">#171717</color>
     <color name="gr_sidebar">#111111</color>

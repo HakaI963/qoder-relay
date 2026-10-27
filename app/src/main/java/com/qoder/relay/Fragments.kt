@@ -445,7 +445,7 @@ class UsageFragment : Fragment() {
         host.addView(row1); host.addView(vpad(8))
         val row2 = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
         row2.addView(stat("Requests", a.sumOf { it.reqs }.toString()))
-        row2.addView(stat("Errors / FO", a.sumOf { it.errs } + " / " + a.sumOf { it.failovers }))
+        row2.addView(stat("Errors / FO", "${a.sumOf { it.errs }} / ${a.sumOf { it.failovers }}"))
         host.addView(row2); host.addView(vpad(10))
 
         host.addView(TextView(rc).apply { text = "PER ACCOUNT"; textSize = 11f; setTextColor(0xFF929292.toInt()); letterSpacing = 0.06f })

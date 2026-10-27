@@ -1,0 +1,102 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:fillViewport="true">
+
+    <LinearLayout
+        android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="14dp" android:paddingTop="8dp"
+        android:paddingEnd="14dp" android:paddingBottom="24dp">
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="Test"
+            android:textAppearance="@style/TextAppearance.Relay.PageTitle" />
+
+        <TextView
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="Probe sends a COSY-signed request straight to the gateway. Call relay runs the full path through your local OpenAI endpoint."
+            android:textAppearance="@style/TextAppearance.Relay.Body" />
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:text="Account"
+            android:textAppearance="@style/TextAppearance.Relay.Section" />
+        <Spinner
+            android:id="@+id/sp_account"
+            android:layout_width="match_parent" android:layout_height="44dp" />
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Model"
+            android:textAppearance="@style/TextAppearance.Relay.Section" />
+        <Spinner
+            android:id="@+id/sp_model"
+            android:layout_width="match_parent" android:layout_height="44dp" />
+
+        <TextView
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Prompt"
+            android:textAppearance="@style/TextAppearance.Relay.Section" />
+        <EditText
+            android:id="@+id/et_prompt"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:hint="Reply with exactly: RELAY-APP-OK"
+            android:inputType="text"
+            android:maxLines="3"
+            android:textColor="?attr/colorOnSurface" />
+
+        <com.google.android.material.checkbox.MaterialCheckBox
+            android:id="@+id/cb_stream"
+            android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:checked="true"
+            android:text="stream" />
+
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_probe"
+                style="?attr/materialButtonOutlinedStyle"
+                android:layout_width="0dp" android:layout_height="44dp"
+                android:layout_weight="1" android:layout_marginEnd="8dp"
+                android:text="Probe upstream" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_call"
+                android:layout_width="0dp" android:layout_height="44dp"
+                android:layout_weight="1"
+                android:text="Call relay" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:textAppearance="@style/TextAppearance.Relay.Body" />
+
+        <com.google.android.material.card.MaterialCardView
+            style="?attr/materialCardViewOutlinedStyle"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp">
+            <ScrollView
+                android:layout_width="match_parent" android:layout_height="300dp">
+                <TextView
+                    android:id="@+id/tv_output"
+                    android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:padding="12dp"
+                    android:fontFamily="monospace"
+                    android:textSize="11sp"
+                    android:textIsSelectable="true"
+                    android:textColor="?attr/colorOnSurface" />
+            </ScrollView>
+        </com.google.android.material.card.MaterialCardView>
+    </LinearLayout>
+</ScrollView>

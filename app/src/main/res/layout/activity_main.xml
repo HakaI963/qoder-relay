@@ -2,13 +2,15 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical">
+    android:orientation="vertical"
+    android:fitsSystemWindows="true">
 
     <com.google.android.material.appbar.MaterialToolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
         android:background="?android:attr/colorBackground"
-        app:title="@string/app_name" app:titleTextColor="?attr/colorOnSurface" />
+        app:title="@string/app_name"
+        app:titleTextColor="?attr/colorOnSurface" />
 
     <com.google.android.material.tabs.TabLayout
         android:id="@+id/tabs"
@@ -16,9 +18,13 @@
         android:background="?attr/colorSurface"
         app:tabMode="scrollable"
         app:tabIndicatorColor="?attr/colorOnSurface"
+        app:tabIndicatorFullWidth="false"
+        app:tabRippleColor="@null"
+        app:tabTextAppearance="@style/TextAppearance.Relay.Tab"
         app:tabTextColor="?attr/colorOnSurfaceVariant"
         app:tabSelectedTextColor="?attr/colorOnSurface" />
 
-    <FrameLayout android:id="@+id/tab_container"
+    <FrameLayout
+        android:id="@+id/tab_container"
         android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
 </LinearLayout>

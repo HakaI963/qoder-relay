@@ -11,8 +11,10 @@ class MainActivity : AppCompatActivity() {
 
     private val themes = listOf(R.style.Theme_Relay_Graphite, R.style.Theme_Relay_Warm, R.style.Theme_Relay_Midnight)
     private var themeIdx = 0
-    private val tabs = listOf("Accounts", "Models", "Usage", "Test", "Settings")
+    private val tabNames = listOf("Accounts", "Models", "Usage", "Test", "Settings")
     private val cache = arrayOfNulls<View>(5)
+    private var accountsTab: AccountsTab? = null
+    private var modelsTab: ModelsTab? = null
     private lateinit var container: FrameLayout
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -27,9 +29,8 @@ class MainActivity : AppCompatActivity() {
         app.ensureServer()
 
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
-        toolbar.menu.add(0, 1, 0, "Theme").setShowAsAction(android.view.MenuItem.SHOW_AS_ACTION_NEVER)
         toolbar.setOnMenuItemClickListener { item ->
-            if (item.itemId == 1) {
+            if (item.itemId == R.id.act_theme) {
                 com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                     .setTitle("Theme")
                     .setItems(arrayOf("Graphite", "Warm neutral", "Midnight slate")) { _, w ->
@@ -40,30 +41,47 @@ class MainActivity : AppCompatActivity() {
                 true
             } else false
         }
+        toolbar.inflateMenu(R.menu.main).apply {}
 
         container = findViewById(R.id.tab_container)
         val tabLayout = findViewById<TabLayout>(R.id.tabs)
-        tabs.forEach { tabLayout.addTab(tabLayout.newTab().setText(it)) }
+        tabNames.forEach { tabLayout.addTab(tabLayout.newTab().setText(it)) }
         tabLayout.addOnTabSelectedListener(object : TabLayout.OnTabSelectedListener {
             override fun onTabSelected(tab: TabLayout.Tab) { show(tab.position) }
             override fun onTabUnselected(tab: TabLayout.Tab) {}
-            override fun onTabReselected(tab: TabLayout.Tab) {}
+            override fun onTabReselected(tab: TabLayout.Tab) { cache[tab.position] = null; show(tab.position) }
         })
         show(0)
     }
 
-    private fun buildView(index: Int): View = when (index) {
-        0 -> AccountsTab(this).build()
-        1 -> modelsTab(this)
-        2 -> usageTab(this)
-        3 -> testTab(this)
-        else -> settingsTab(this)
+    private fun build(index: Int): View = when (index) {
+        0 -> {
+            val v = layoutInflater.inflate(R.layout.tab_accounts, container, false)
+            accountsTab = AccountsTab(this, v); v
+        }
+        1 -> {
+            val v = layoutInflater.inflate(R.layout.tab_models, container, false)
+            modelsTab = ModelsTab(this, v); v
+        }
+        2 -> {
+            val v = layoutInflater.inflate(R.layout.tab_usage, container, false)
+            UsageTab(this, v); v
+        }
+        3 -> {
+            val v = layoutInflater.inflate(R.layout.tab_test, container, false)
+            TestTab(this, v); v
+        }
+        else -> {
+            val v = layoutInflater.inflate(R.layout.tab_settings, container, false)
+            SettingsTab(this, v); v
+        }
     }
 
     private fun show(index: Int) {
-        val view = cache[index] ?: buildView(index).also { cache[index] = it }
+        val view = cache[index] ?: build(index).also { cache[index] = it }
         (view.parent as? FrameLayout)?.removeView(view)
         container.removeAllViews()
         container.addView(view, FrameLayout.LayoutParams(-1, -1))
+        if (index == 1) modelsTab?.render()
     }
 }

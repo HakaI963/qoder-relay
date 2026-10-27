@@ -3,24 +3,32 @@ package com.qoder.relay
 import android.annotation.SuppressLint
 import android.os.Handler
 import android.os.Looper
-import android.webkit.JavascriptInterface
-import android.webkit.WebSettings
+import android.util.Log
+import android.webkit.ConsoleMessage
+import android.webkit.WebChromeClient
 import android.webkit.WebView
 import org.json.JSONObject
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Runs the original qoder_auth wasm module (served from our local NanoHTTPD) inside a hidden
- * WebView. Produces the COSY-signed URL/headers/encrypted body that the gateway requires.
+ * Runs the original qoder_auth wasm module (fully inlined HTML asset, no network) inside a hidden
+ * WebView. Produces the COSY-signed URL/headers/encrypted body the gateway requires.
  */
 class CosySigner(private val app: RelayApp) {
     private val main = Handler(Looper.getMainLooper())
     private var web: WebView? = null
-    private var loaded = false
+    @Volatile var lastState: String = "init"
+        private set
+    @Volatile var lastError: String = ""
+        private set
 
     fun resetTransport() {
-        onMain { try { web?.destroy() } catch (_: Exception) { }; web = null; loaded = false }
+        onMain {
+            try { web?.destroy() } catch (_: Exception) { }
+            web = null
+            lastState = "init"
+        }
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -29,20 +37,23 @@ class CosySigner(private val app: RelayApp) {
         val w = WebView(app)
         w.settings.javaScriptEnabled = true
         w.settings.domStorageEnabled = false
-        w.settings.cacheMode = WebSettings.LOAD_NO_CACHE
-        w.addJavascriptInterface(object {
-            @JavascriptInterface fun version(): String = "1"
-        }, "RelayHost")
-        w.loadUrl("http://127.0.0.1:" + app.port + "/cosy/sign.html")
+        w.setWebChromeClient(object : WebChromeClient() {
+            override fun onConsoleMessage(m: ConsoleMessage): Boolean {
+                Log.d("CosySigner", "${m.messageLevel()}: ${m.message()} @${m.sourceId()}:${m.lineNumber()}")
+                return true
+            }
+        })
+        val html = app.assets.open("cosy_page.html").bufferedReader().use { it.readText() }
+        w.loadDataWithBaseURL("https://cosy.local/", html, "text/html", "UTF-8", null)
         web = w
-        loaded = false
+        lastState = "loading"
     }
 
     private fun onMain(block: () -> Unit) {
         if (Looper.myLooper() == Looper.getMainLooper()) block() else main.post(block)
     }
 
-    private fun evalSync(js: String, timeoutMs: Long = 15000): String? {
+    private fun evalSync(js: String, timeoutMs: Long = 20000): String? {
         var result: String? = null
         val latch = CountDownLatch(1)
         onMain {
@@ -58,30 +69,33 @@ class CosySigner(private val app: RelayApp) {
 
     private fun unquoteJs(v: String?): String? {
         if (v == null || v == "null") return null
-        return try {
-            val t = org.json.JSONTokener(v)
-            t.nextValue().toString()
-        } catch (_: Exception) { v }
+        return try { org.json.JSONTokener(v).nextValue().toString() } catch (_: Exception) { v }
     }
 
     private fun waitReady(timeoutMs: Long): Boolean {
         val end = System.currentTimeMillis() + timeoutMs
+        var last = ""
         while (System.currentTimeMillis() < end) {
-            val st = evalSync("window.__state", 3000) ?: ""
+            val st = evalSync("window.__state", 4000) ?: "unreachable"
+            last = st
+            lastState = st
             if (st == "ready") return true
-            if (st.startsWith("error")) throw IllegalStateException("cosy wasm: $st")
-            try { Thread.sleep(200) } catch (_: InterruptedException) { return false }
+            if (st.startsWith("error")) {
+                lastError = st
+                throw IllegalStateException(st.removePrefix("error: ").trim().ifEmpty { st })
+            }
+            try { Thread.sleep(150) } catch (_: InterruptedException) { return false }
         }
+        lastError = "state=$last after ${timeoutMs}ms"
         return false
     }
 
-    /** Regenerate the per-account auth fields. Returns {encrypt_user_info, key}. */
     fun genFields(accessToken: String, refreshToken: String, uid: String, machineId: String): JSONObject {
-        if (!waitReady(15000)) throw IllegalStateException("cosy wasm not ready")
+        if (!waitReady(25000)) throw IllegalStateException("cosy wasm not ready (${lastState})")
         val arg = JSONObject()
             .put("accessToken", accessToken).put("refreshToken", refreshToken)
             .put("uid", uid).put("machineId", machineId).toString()
-        val res = evalSync("window.__genFields(" + JSONObject.quote(arg) + ")", 20000)
+        val res = evalSync("window.__genFields(" + JSONObject.quote(arg) + ")")
             ?: throw IllegalStateException("genFields returned null")
         val o = JSONObject(res)
         if (!o.optBoolean("ok")) throw IllegalStateException(o.optString("err"))
@@ -92,22 +106,20 @@ class CosySigner(private val app: RelayApp) {
         evalSync("window.__reset(" + listOf(machineId, uid, enc, key).joinToString(",") { JSONObject.quote(it) } + ")")
     }
 
-    /** Signed inference request. */
     fun signInfer(endpoint: String, bodyJson: String, modelKey: String, modelSource: String): JSONObject {
-        if (!waitReady(15000)) throw IllegalStateException("cosy wasm not ready")
+        if (!waitReady(25000)) throw IllegalStateException("cosy wasm not ready (${lastState})")
         val args = listOf(endpoint, bodyJson, modelKey, modelSource).joinToString(",") { JSONObject.quote(it) }
-        val res = evalSync("window.__signInfer($args)", 20000)
+        val res = evalSync("window.__signInfer($args)")
             ?: throw IllegalStateException("signInfer returned null")
         val o = JSONObject(res)
         if (!o.optBoolean("ok")) throw IllegalStateException(o.optString("err"))
         return o
     }
 
-    /** Signed plain API request, e.g. GET /algo/api/v2/model/list. */
     fun signRequest(endpoint: String, path: String, method: String): JSONObject {
-        if (!waitReady(15000)) throw IllegalStateException("cosy wasm not ready")
+        if (!waitReady(25000)) throw IllegalStateException("cosy wasm not ready (${lastState})")
         val args = listOf(endpoint, path, method).joinToString(",") { JSONObject.quote(it) }
-        val res = evalSync("window.__signRequest($args)", 20000)
+        val res = evalSync("window.__signRequest($args)")
             ?: throw IllegalStateException("signRequest returned null")
         val o = JSONObject(res)
         if (!o.optBoolean("ok")) throw IllegalStateException(o.optString("err"))

@@ -8,27 +8,22 @@ import android.graphics.Typeface
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
-import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ArrayAdapter
 import android.widget.EditText
 import android.widget.FrameLayout
-import android.widget.ImageButton
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.button.MaterialButton
 import com.google.android.material.chip.Chip
 import com.google.android.material.chip.ChipGroup
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton
 import com.google.android.material.materialswitch.MaterialSwitch
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -37,66 +32,23 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.text.DateFormat
 
-/* ---------------- shared helpers ---------------- */
-
-fun Context.relayApp(): RelayApp = applicationContext as RelayApp
-fun Context.dpv(v: Float): Int = (v * resources.displayMetrics.density).toInt()
 fun fmtTok(n: Long): String = when {
     n >= 1_000_000 -> String.format("%.2fM", n / 1e6)
     n >= 1_000 -> String.format("%.1fk", n / 1e3)
     else -> n.toString()
 }
+
+fun Context.attrColor(attr: Int): Int {
+    val tv = android.util.TypedValue()
+    theme.resolveAttribute(attr, tv, true)
+    return if (tv.resourceId != 0) androidx.core.content.ContextCompat.getColor(this, tv.resourceId) else tv.data
+}
+fun AppCompatActivity.app() = applicationContext as RelayApp
 fun AppCompatActivity.toast(m: String) =
     android.widget.Toast.makeText(this, m, android.widget.Toast.LENGTH_SHORT).show()
 fun AppCompatActivity.copyText(t: String) {
     val cm = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText("relay", t)); toast("copied")
-}
-
-private fun Context.labelUpper(s: String) = TextView(this).apply {
-    text = s.uppercase(); textSize = 11f; letterSpacing = 0.06f
-    setTextColor(0xFF929292.toInt()); setPadding(0, dpv(14f), 0, dpv(6f))
-}
-private fun Context.h1(s: String) = TextView(this).apply {
-    text = s; textSize = 18f; setTypeface(null, Typeface.BOLD); setPadding(0, dpv(4f), 0, dpv(8f))
-}
-private fun Context.body(s: CharSequence, mono: Boolean = false) = TextView(this).apply {
-    text = s; textSize = 12.5f; setTextIsSelectable(true)
-    if (mono) typeface = Typeface.MONOSPACE
-}
-fun Context.card(vararg children: View): com.google.android.material.card.MaterialCardView {
-    val c = com.google.android.material.card.MaterialCardView(this).apply {
-        layoutParams = LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dpv(10f) }
-        setPadding(dpv(14f), dpv(12f), dpv(14f), dpv(12f))
-    }
-    val col = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
-    children.forEach { col.addView(it) }
-    c.addView(col)
-    return c
-}
-fun Context.actionBtn(label: String, onClick: () -> Unit) =
-    MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
-        text = label; textSize = 12.5f; setOnClickListener { onClick() }
-    }
-fun Context.themeColor(attr: Int): Int {
-    val tv = android.util.TypedValue()
-    theme.resolveAttribute(attr, tv, true)
-    return if (tv.resourceId != 0) androidx.core.content.ContextCompat.getColor(this, tv.resourceId) else tv.data
-}
-fun Context.textAction(label: String, onClick: () -> Unit) = TextView(this).apply {
-    text = label; textSize = 12.5f; isClickable = true; isFocusable = true
-    setTextColor(themeColor(com.google.android.material.R.attr.colorOnSurface))
-    setPadding(dpv(4f), dpv(10f), dpv(14f), 0)
-    setOnClickListener { onClick() }
-}
-fun Context.spacer(h: Int) = View(this).apply { layoutParams = LinearLayout.LayoutParams(-1, dpv(h.toFloat())) }
-fun Context.pageColumn(): LinearLayout = LinearLayout(this).apply {
-    orientation = LinearLayout.VERTICAL
-    setPadding(dpv(14f), dpv(6f), dpv(14f), dpv(20f))
-}
-fun Context.scrollWrap(col: View): ScrollView = ScrollView(this).apply {
-    addView(col, LinearLayout.LayoutParams(-1, -2))
-    setPadding(0, 0, 0, 0)
 }
 
 fun AppCompatActivity.autoTick(view: View, everyMs: Long, block: () -> Unit) {
@@ -108,33 +60,22 @@ fun AppCompatActivity.autoTick(view: View, everyMs: Long, block: () -> Unit) {
     })
 }
 
-/* ---------------- Accounts tab ---------------- */
+/* ---------------- Accounts ---------------- */
 
-class AccountsTab(private val act: AppCompatActivity) {
-    private lateinit var adapter: AccountAdapter
-    private val app get() = act.relayApp()
+class AccountsTab(private val act: AppCompatActivity, private val root: View) {
+    private val app get() = act.app()
+    private val recycler: RecyclerView = root.findViewById(R.id.account_list)
+    private val empty: TextView = root.findViewById(R.id.accounts_empty)
+    private val adapter = AccountAdapter()
 
-    fun build(): View {
-        val frame = FrameLayout(act)
-        val recycler = RecyclerView(act).apply {
-            layoutManager = LinearLayoutManager(act)
-            setPadding(act.dpv(12f), act.dpv(4f), act.dpv(12f), act.dpv(96f))
-            clipToPadding = false
-        }
-        adapter = AccountAdapter()
+    init {
+        recycler.layoutManager = LinearLayoutManager(act)
         recycler.adapter = adapter
-        frame.addView(recycler, FrameLayout.LayoutParams(-1, -1))
-        val fab = ExtendedFloatingActionButton(act).apply {
-            text = "+ Add account"; extend()
-            layoutParams = FrameLayout.LayoutParams(-2, -2, Gravity.END or Gravity.BOTTOM)
-                .apply { setMargins(0, 0, act.dpv(16f), act.dpv(16f)) }
-            setOnClickListener { askAddMethod() }
-        }
-        frame.addView(fab)
-        act.autoTick(frame, 5000) { adapter.submit() }
-        adapter.submit()
-        return frame
+        root.findViewById<View>(R.id.fab_add).setOnClickListener { askAddMethod() }
+        act.autoTick(root, 5000) { adapter.submit() }
     }
+
+    fun submit() = adapter.submit()
 
     private fun askAddMethod() {
         val opts = arrayOf("Sign in with Qoder (browser)", "Paste Personal Access Token (pt-…)")
@@ -189,11 +130,11 @@ class AccountsTab(private val act: AppCompatActivity) {
     private fun runDeviceLogin(region: String) {
         val (st, url) = QoderClient.loginStart(region)
         val box = TextView(act).apply {
-            text = url; setTextIsSelectable(true); setPadding(act.dpv(22f), act.dpv(10f), act.dpv(22f), 0); textSize = 12f
+            text = url; setTextIsSelectable(true); setPadding(44, 20, 44, 0); textSize = 12f
         }
         val dialog = MaterialAlertDialogBuilder(act)
             .setTitle("Sign in with Qoder")
-            .setMessage("Approve in the browser — the relay captures the token automatically (same flow as the CLI).")
+            .setMessage("Approve in the browser — the relay captures the token automatically.")
             .setView(box)
             .setPositiveButton("Open", null)
             .setNegativeButton("Copy", null)
@@ -217,9 +158,11 @@ class AccountsTab(private val act: AppCompatActivity) {
                 acc.token = tokens.getString("token"); acc.refreshToken = tokens.optString("refreshToken")
                 acc.expiresAt = tokens.getLong("expiresAt"); acc.status = "active"; acc.needsFields = true
                 val prepared = withContext(Dispatchers.IO) {
-                    try { prepareAccount(acc); true } catch (e: Exception) { false }
+                    try { prepareAccount(acc); true } catch (e: Exception) {
+                        acc.lastError = (e.message ?: "model list failed").take(120); false
+                    }
                 }
-                if (!prepared) acc.lastError = "model list failed — tap refresh"
+                if (!prepared) acc.lastError = acc.lastError.ifEmpty { "model list failed — tap refresh models" }
                 app.repo.accounts.add(acc); app.repo.save()
                 if (dialog.isShowing) dialog.dismiss()
                 adapter.submit(); act.toast("signed in — account added")
@@ -231,16 +174,19 @@ class AccountsTab(private val act: AppCompatActivity) {
 
     inner class AccountAdapter : RecyclerView.Adapter<AccountAdapter.VH>() {
         private var items: List<Account> = emptyList()
-        fun submit() { items = app.repo.accounts.toList(); notifyDataSetChanged() }
+        fun submit() {
+            items = app.repo.accounts.toList(); notifyDataSetChanged()
+            empty.visibility = if (items.isEmpty()) View.VISIBLE else View.GONE
+        }
 
         inner class VH(v: View) : RecyclerView.ViewHolder(v) {
             val dot: View = v.findViewById(R.id.dot)
             val name: TextView = v.findViewById(R.id.tv_name)
             val meta: TextView = v.findViewById(R.id.tv_meta)
             val sw: MaterialSwitch = v.findViewById(R.id.sw_enabled)
-            val del: ImageButton = v.findViewById(R.id.btn_delete)
             val chips: ChipGroup = v.findViewById(R.id.chip_group)
-            val refresh: TextView = v.findViewById(R.id.btn_refresh_models)
+            val refresh: View = v.findViewById(R.id.btn_refresh_models)
+            val remove: View = v.findViewById(R.id.btn_remove)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, t: Int): VH =
@@ -258,26 +204,26 @@ class AccountsTab(private val act: AppCompatActivity) {
             }
             h.dot.background?.setTint(act.getColor(colorRes))
             h.meta.text = "${a.kind} · ${a.region} · ${a.reqs} req · ${fmtTok(a.inTok)} in / ${fmtTok(a.outTok)} out · ${a.errs} err" +
-                (if (a.encInfo.isEmpty()) " · cosy: pending" else " · cosy ✓") +
-                (if (a.lastError.isNotEmpty()) " · " + a.lastError.take(40) else "")
+                (if (a.encInfo.isEmpty()) "\nCOSY fields pending — tap refresh models" else "") +
+                (if (a.lastError.isNotEmpty()) "\n" + a.lastError.take(90) else "")
             h.sw.setOnCheckedChangeListener(null)
             h.sw.isChecked = a.enabled
             h.sw.setOnCheckedChangeListener { _, on -> a.enabled = on; app.repo.save() }
             h.itemView.setOnClickListener { showDetail(a) }
-            h.del.setOnClickListener {
-                MaterialAlertDialogBuilder(act).setTitle("Remove ${a.label}?")
-                    .setMessage("Token and stats for this account are deleted.")
-                    .setPositiveButton("Remove") { _, _ -> app.repo.accounts.remove(a); app.repo.save(); submit() }
-                    .setNegativeButton("Cancel", null).show()
-            }
             h.refresh.setOnClickListener {
-                h.refresh.text = "refreshing…"
+                act.toast("refreshing models…")
                 act.lifecycleScope.launch {
                     try {
                         withContext(Dispatchers.IO) { prepareAccount(a); app.repo.save() }
                         submit(); act.toast("models refreshed")
-                    } catch (e: Exception) { act.toast("failed: " + (e.message ?: "")); h.refresh.text = "refresh models" }
+                    } catch (e: Exception) { act.toast("failed: " + (e.message ?: "")) }
                 }
+            }
+            h.remove.setOnClickListener {
+                MaterialAlertDialogBuilder(act).setTitle("Remove ${a.label}?")
+                    .setMessage("Token and stats for this account are deleted.")
+                    .setPositiveButton("Remove") { _, _ -> app.repo.accounts.remove(a); app.repo.save(); submit() }
+                    .setNegativeButton("Cancel", null).show()
             }
             fillChips(h.chips, a)
         }
@@ -287,12 +233,12 @@ class AccountsTab(private val act: AppCompatActivity) {
             val body = buildString {
                 appendLine("id        ${a.id}")
                 appendLine("kind      ${a.kind} (${a.region})")
-                appendLine("auth      ${a.status} · token expires $exp")
+                appendLine("auth      ${a.status} · token exp $exp")
                 appendLine("uid       ${a.uid.ifEmpty { "—" }}")
                 appendLine("token     ${a.token.take(8)}…")
                 appendLine("machine   ${a.machineId}")
-                appendLine("cosy      ${if (a.encInfo.isNotEmpty()) "fields ready" else "pending"} · key ${a.cosyKey.take(10)}…")
-                appendLine("models    ${if (a.models.isEmpty()) "all (universal)" else a.models.joinToString()}")
+                appendLine("cosy      ${if (a.encInfo.isNotEmpty()) "ready" else "pending"} · key ${a.cosyKey.take(10)}…")
+                appendLine("serving   ${if (a.models.isEmpty()) "all models" else a.models.joinToString()}")
                 appendLine("counters  req ${a.reqs} · in ${a.inTok} · out ${a.outTok}")
                 appendLine("errors    ${a.errs} · failovers ${a.failovers}")
                 if (a.lastError.isNotEmpty()) appendLine("lastErr   ${a.lastError}")
@@ -310,7 +256,7 @@ class AccountsTab(private val act: AppCompatActivity) {
         }
     }
 
-    fun fillChips(group: ChipGroup, a: Account) {
+    private fun fillChips(group: ChipGroup, a: Account) {
         group.removeAllViews()
         val keys = if (a.discovered.isNotEmpty()) a.discovered else a.models
         for (k in keys) {
@@ -328,142 +274,138 @@ class AccountsTab(private val act: AppCompatActivity) {
             group.addView(chip)
         }
         if (keys.isEmpty()) group.addView(TextView(group.context).apply {
-            text = "no models yet — tap refresh"; textSize = 12f; setTextColor(0xFF929292.toInt())
+            text = "no models yet"; textSize = 12f; setTextColor(0xFF929292.toInt())
         })
     }
 }
 
-/* ---------------- Models tab ---------------- */
+/* ---------------- Models ---------------- */
 
-fun modelsTab(act: AppCompatActivity): View {
-    val col = act.pageColumn()
-    col.addView(act.h1("Model selection"))
-    col.addView(act.body("Universal = empty allow-list (account serves everything). Checked models restrict an account. Pin one account per request with \"relay_account\" in the JSON body.", mono = false))
-    val app = act.relayApp()
-    app.repo.accounts.forEach { a ->
-        val chips = ChipGroup(act)
-        val universal = MaterialSwitch(act).apply {
-            isChecked = a.universal
-            setOnCheckedChangeListener { _, on -> a.universal = on; app.repo.save() }
-        }
-        val head = LinearLayout(act).apply {
-            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-            addView(TextView(act).apply { text = a.label; textSize = 15f; setTypeface(null, Typeface.BOLD) },
-                LinearLayout.LayoutParams(0, -2, 1f))
-            addView(universal)
-        }
-        val actions = LinearLayout(act).apply {
-            orientation = LinearLayout.HORIZONTAL
-            addView(act.textAction("refresh models") {
+class ModelsTab(private val act: AppCompatActivity, private val root: View) {
+    private val app get() = act.app()
+    private val host: LinearLayout = root.findViewById(R.id.models_host)
+
+    init {
+        act.autoTick(root, 20000) { render() }
+    }
+
+    fun render() {
+        host.removeAllViews()
+        app.repo.accounts.forEach { a ->
+            val card = LayoutInflater.from(act).inflate(R.layout.item_model_account, host, false)
+            card.findViewById<TextView>(R.id.tv_name).text = a.label
+            card.findViewById<TextView>(R.id.tv_serving).text =
+                if (a.models.isEmpty()) "serving: ALL models" else "serving: " + a.models.joinToString()
+            val sw = card.findViewById<MaterialSwitch>(R.id.sw_universal)
+            sw.setOnCheckedChangeListener(null)
+            sw.isChecked = a.universal
+            sw.setOnCheckedChangeListener { _, on -> a.universal = on; app.repo.save() }
+            val chips = card.findViewById<ChipGroup>(R.id.chip_group)
+            val keys = if (a.discovered.isNotEmpty()) a.discovered else a.models
+            for (k in keys) {
+                val chip = Chip(act).apply {
+                    text = k; isCheckable = true
+                    isChecked = a.models.isEmpty() || a.models.contains(k)
+                    setOnCheckedChangeListener { _, on ->
+                        if (on) { if (!a.models.contains(k)) a.models.add(k) } else {
+                            if (a.models.isEmpty()) a.models.addAll(a.discovered.ifEmpty { keys.filter { it != k } })
+                            a.models.remove(k)
+                        }
+                        app.repo.save()
+                        card.findViewById<TextView>(R.id.tv_serving).text =
+                            if (a.models.isEmpty()) "serving: ALL models" else "serving: " + a.models.joinToString()
+                    }
+                }
+                chips.addView(chip)
+            }
+            if (keys.isEmpty()) chips.addView(TextView(act).apply {
+                text = "no models discovered"; textSize = 12f; setTextColor(0xFF929292.toInt())
+            })
+            card.findViewById<View>(R.id.btn_refresh).setOnClickListener {
                 act.lifecycleScope.launch {
                     try {
                         withContext(Dispatchers.IO) {
                             val entries = QoderClient.listModels(a, app.signer)
                             a.discovered = entries.map { it.optString("key") }.filter { it.isNotEmpty() }.toMutableList()
-                            entries.forEach { val k = it.optString("key"); if (k.isNotEmpty()) app.engine.modelInfo[k] = it.optString("display_name") to it.optBoolean("is_reasoning") }
+                            entries.forEach {
+                                val k = it.optString("key")
+                                if (k.isNotEmpty()) app.engine.modelInfo[k] = it.optString("display_name") to it.optBoolean("is_reasoning")
+                            }
                             app.repo.save()
                         }
-                        act.toast("models refreshed — reopen Models tab")
+                        render(); act.toast("models refreshed")
                     } catch (e: Exception) { act.toast("failed: " + (e.message ?: "")) }
                 }
-            })
-            addView(act.textAction("allow all (clear)") { a.models.clear(); app.repo.save(); act.toast("saved") })
-        }
-        col.addView(act.card(
-            head,
-            TextView(act).apply { text = "universal pool"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-            chips, actions,
-            TextView(act).apply { text = if (a.models.isEmpty()) "serving: ALL models" else "serving: " + a.models.joinToString(); textSize = 11.5f; setPadding(0, act.dpv(6f), 0, 0); setTextColor(0xFF929292.toInt()) }
-        ))
-        val keys = if (a.discovered.isNotEmpty()) a.discovered else a.models
-        for (k in keys) {
-            val chip = Chip(act).apply {
-                text = k; isCheckable = true
-                isChecked = a.models.isEmpty() || a.models.contains(k)
-                setOnCheckedChangeListener { _, on ->
-                    if (on) { if (!a.models.contains(k)) a.models.add(k) } else {
-                        if (a.models.isEmpty()) a.models.addAll(a.discovered.ifEmpty { keys.filter { it != k } })
-                        a.models.remove(k)
-                    }
-                    app.repo.save()
-                }
             }
-            chips.addView(chip)
+            card.findViewById<View>(R.id.btn_allow_all).setOnClickListener {
+                a.models.clear(); app.repo.save(); render(); act.toast("saved")
+            }
+            host.addView(card)
         }
-        if (keys.isEmpty()) chips.addView(TextView(act).apply {
-            text = "no models discovered yet"; textSize = 12f; setTextColor(0xFF929292.toInt())
-        })
     }
-    return act.scrollWrap(col)
 }
 
-/* ---------------- Usage tab ---------------- */
+/* ---------------- Usage ---------------- */
 
-fun usageTab(act: AppCompatActivity): View {
-    val app = act.relayApp()
-    val col = act.pageColumn()
-    col.addView(act.h1("Token usage"))
-    fun statCard(title: String, value: String) = act.card(
-        TextView(act).apply { text = title.uppercase(); textSize = 11f; letterSpacing = 0.06f; setTextColor(0xFF929292.toInt()) },
-        TextView(act).apply { text = value; textSize = 22f; setTypeface(null, Typeface.BOLD); setPadding(0, act.dpv(4f), 0, 0) }
-    )
-    val stats = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL }
-    val c1 = statCard("Tokens in", fmtTok(app.repo.totalIn()))
-    val c2 = statCard("Tokens out", fmtTok(app.repo.totalOut()))
-    c1.layoutParams = LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = act.dpv(8f) }
-    c2.layoutParams = LinearLayout.LayoutParams(0, -2, 1f)
-    stats.addView(c1); stats.addView(c2)
-    col.addView(stats)
-    col.addView(act.card(
-        TextView(act).apply { text = "REQUESTS"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-        TextView(act).apply {
-            text = "${app.repo.accounts.sumOf { it.reqs }} total · ${app.repo.accounts.sumOf { it.errs }} errors · ${app.repo.accounts.sumOf { it.failovers }} failovers"
-            textSize = 13f; setPadding(0, act.dpv(4f), 0, 0)
-        }
-    ))
-    col.addView(act.labelUpper("per account"))
-    val table = act.card(
-        TextView(act).apply {
-            text = if (app.repo.accounts.isEmpty()) "—" else app.repo.accounts.joinToString("\n") {
-                "${it.label}:  in ${fmtTok(it.inTok)}  out ${fmtTok(it.outTok)}  req ${it.reqs}  err ${it.errs}"
-            }
-            typeface = Typeface.MONOSPACE; textSize = 12f
-        })
-    col.addView(table)
-    col.addView(act.labelUpper("recent requests"))
-    val logTv = TextView(act).apply { typeface = Typeface.MONOSPACE; textSize = 11f; setTextIsSelectable(true) }
-    col.addView(act.card(logTv))
+class UsageTab(private val act: AppCompatActivity, private val root: View) {
+    private val app get() = act.app()
+    private val inTv: TextView = root.findViewById(R.id.tv_total_in)
+    private val outTv: TextView = root.findViewById(R.id.tv_total_out)
+    private val countsTv: TextView = root.findViewById(R.id.tv_counts)
+    private val perHost: LinearLayout = root.findViewById(R.id.per_account_host)
+    private val recentTv: TextView = root.findViewById(R.id.tv_recent)
+
+    init { act.autoTick(root, 3000) { render() } }
+
     fun render() {
+        inTv.text = fmtTok(app.repo.totalIn())
+        outTv.text = fmtTok(app.repo.totalOut())
+        countsTv.text = "${app.repo.accounts.sumOf { it.reqs }} total · ${app.repo.accounts.sumOf { it.errs }} errors · ${app.repo.accounts.sumOf { it.failovers }} failovers"
+        perHost.removeAllViews()
+        app.repo.accounts.forEach { a ->
+            val row = TextView(act).apply {
+                text = "${a.label}\nin ${fmtTok(a.inTok)}   out ${fmtTok(a.outTok)}   req ${a.reqs}   err ${a.errs}"
+                typeface = Typeface.MONOSPACE; textSize = 12f
+                setTextColor(act.attrColor(com.google.android.material.R.attr.colorOnSurface))
+                setPadding(0, 8, 0, 8)
+            }
+            perHost.addView(row)
+        }
+        if (app.repo.accounts.isEmpty()) perHost.addView(TextView(act).apply {
+            text = "—"; textSize = 12f; setTextColor(0xFF929292.toInt())
+        })
         val sb = StringBuilder()
         synchronized(app.engine.recent) {
             app.engine.recent.take(40).forEach { e ->
                 sb.appendLine("${DateFormat.getTimeInstance(DateFormat.SHORT).format(java.util.Date(e.optLong("ts")))} ${e.optString("state")} ${e.optString("model")} ${e.optLong("in")}→${e.optLong("out")} ${e.optLong("ms")}ms [${e.optString("account")}] ${e.optString("status")}")
             }
         }
-        logTv.text = if (sb.isEmpty()) "—" else sb.toString().trimEnd()
+        recentTv.text = if (sb.isEmpty()) "—" else sb.toString().trimEnd()
     }
-    render()
-    val wrap = act.scrollWrap(col)
-    act.autoTick(wrap, 3000) { render() }
-    return wrap
 }
 
-/* ---------------- Test tab ---------------- */
+/* ---------------- Test ---------------- */
 
-fun testTab(act: AppCompatActivity): View {
-    val app = act.relayApp()
-    val col = act.pageColumn()
-    col.addView(act.h1("Test"))
-    val accountSpin = Spinner(act)
-    val modelSpin = Spinner(act)
-    val prompt = EditText(act).apply { setText("Reply with exactly: RELAY-APP-OK"); minLines = 1 }
-    val streamBox = com.google.android.material.checkbox.MaterialCheckBox(act).apply { text = "stream"; isChecked = true }
-    val statusTv = TextView(act).apply { textSize = 12f; setTextColor(0xFF929292.toInt()) }
-    val out = TextView(act).apply {
-        typeface = Typeface.MONOSPACE; textSize = 11f; setTextIsSelectable(true)
-        setPadding(act.dpv(10f), act.dpv(10f), act.dpv(10f), act.dpv(10f))
+class TestTab(private val act: AppCompatActivity, private val root: View) {
+    private val app get() = act.app()
+    private val accountSpin: Spinner = root.findViewById(R.id.sp_account)
+    private val modelSpin: Spinner = root.findViewById(R.id.sp_model)
+    private val prompt: EditText = root.findViewById(R.id.et_prompt)
+    private val streamBox: android.widget.CheckBox = root.findViewById(R.id.cb_stream)
+    private val statusTv: TextView = root.findViewById(R.id.tv_status)
+    private val out: TextView = root.findViewById(R.id.tv_output)
+
+    init {
+        fillSpinners()
+        root.findViewById<View>(R.id.btn_probe).setOnClickListener { probe() }
+        root.findViewById<View>(R.id.btn_call).setOnClickListener { callRelay() }
+        root.addOnAttachStateChangeListener(object : View.OnAttachStateChangeListener {
+            override fun onViewAttachedToWindow(v: View) { fillSpinners() }
+            override fun onViewDetachedFromWindow(v: View) {}
+        })
     }
-    fun fillSpinners() {
+
+    private fun fillSpinners() {
         val accs = app.repo.accounts.filter { it.enabled }
         accountSpin.adapter = ArrayAdapter(act, android.R.layout.simple_spinner_dropdown_item,
             (if (accs.isNotEmpty()) listOf("auto (pool)") else listOf("auto (no accounts!)")) + accs.map { it.label })
@@ -473,17 +415,15 @@ fun testTab(act: AppCompatActivity): View {
         modelSpin.adapter = ArrayAdapter(act, android.R.layout.simple_spinner_dropdown_item,
             models.ifEmpty { listOf("qfmodel", "dfmodel") }.toList())
     }
-    fillSpinners()
-    col.addView(act.labelUpper("account")); col.addView(accountSpin)
-    col.addView(act.labelUpper("model")); col.addView(modelSpin)
-    col.addView(act.labelUpper("prompt")); col.addView(prompt)
-    col.addView(streamBox)
-    val row = LinearLayout(act).apply { orientation = LinearLayout.HORIZONTAL; setPadding(0, act.dpv(8f), 0, 0) }
-    row.addView(act.actionBtn("Probe upstream") {
+
+    private fun chosenAccount(): Account? {
         val accs = app.repo.accounts.filter { it.enabled }
         val idx = accountSpin.selectedItemPosition - 1
-        val acc = if (idx < 0) accs.firstOrNull() else accs.getOrNull(idx)
-        if (acc == null) { act.toast("add an account first"); return@actionBtn }
+        return if (idx < 0) accs.firstOrNull() else accs.getOrNull(idx)
+    }
+
+    private fun probe() {
+        val acc = chosenAccount() ?: run { act.toast("add an account first"); return }
         val model = modelSpin.selectedItem?.toString().orEmpty()
         out.text = "signing + sending…"; statusTv.text = "account ${acc.label} → $model"
         act.lifecycleScope.launch {
@@ -511,8 +451,9 @@ fun testTab(act: AppCompatActivity): View {
             }
             out.text = res; statusTv.text = "probe finished"
         }
-    })
-    row.addView(act.actionBtn("Call relay") {
+    }
+
+    private fun callRelay() {
         val model = modelSpin.selectedItem?.toString().orEmpty()
         val stream = streamBox.isChecked
         out.text = "calling http://127.0.0.1:${app.port}/v1/chat/completions …"
@@ -530,7 +471,7 @@ fun testTab(act: AppCompatActivity): View {
                         .put("messages", org.json.JSONArray().put(JSONObject().put("role", "user").put("content", prompt.text.toString())))
                     conn.outputStream.use { it.write(body.toString().toByteArray()) }
                     val code = conn.responseCode
-                    val rd = ((if (code in 200..299) conn.inputStream else conn.errorStream))?.bufferedReader()
+                    val rd = (if (code in 200..299) conn.inputStream else conn.errorStream)?.bufferedReader()
                     val sb = StringBuilder("HTTP $code\n")
                     rd?.let { r ->
                         var n = 0
@@ -542,81 +483,70 @@ fun testTab(act: AppCompatActivity): View {
             }
             out.text = result; statusTv.text = "relay call finished"
         }
-    })
-    col.addView(row)
-    col.addView(statusTv)
-    val outScroll = ScrollView(act).apply {
-        addView(out, LinearLayout.LayoutParams(-1, -2))
-        layoutParams = LinearLayout.LayoutParams(-1, act.dpv(320f))
     }
-    col.addView(outScroll)
-    return act.scrollWrap(col)
 }
 
-/* ---------------- Settings tab ---------------- */
+/* ---------------- Settings ---------------- */
 
-fun settingsTab(act: AppCompatActivity): View {
-    val app = act.relayApp()
-    val col = act.pageColumn()
-    col.addView(act.h1("Settings"))
-    val lan = app.lanAddress()
-    col.addView(act.card(
-        TextView(act).apply { text = "ENDPOINT"; textSize = 11f; letterSpacing = 0.06f; setTextColor(0xFF929292.toInt()) },
-        act.body("http://" + (lan.ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nhttp://127.0.0.1:" + app.port + "/v1", mono = true),
-        act.body(if (app.isRunning()) "server: running" else "server: STOPPED " + app.serverError, mono = true),
-        act.actionBtn("copy url + key") { act.copyText("http://" + (lan.ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nAuthorization: Bearer " + app.relayKey) }
-    ))
-    col.addView(act.card(
-        TextView(act).apply { text = "RELAY API KEY"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-        act.body(app.relayKey, mono = true),
-        act.actionBtn("regenerate") {
+class SettingsTab(private val act: AppCompatActivity, private val root: View) {
+    private val app get() = act.app()
+
+    init {
+        val lan = app.lanAddress()
+        root.findViewById<TextView>(R.id.tv_endpoint).text =
+            "http://" + (lan.ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nhttp://127.0.0.1:" + app.port + "/v1"
+        root.findViewById<TextView>(R.id.tv_server_state).text =
+            if (app.isRunning()) "server: running" else "server: STOPPED " + app.serverError
+        root.findViewById<TextView>(R.id.tv_key).text = app.relayKey
+        val portEdit = root.findViewById<EditText>(R.id.et_port).apply { setText(app.port.toString()) }
+        root.findViewById<View>(R.id.btn_copy_endpoint).setOnClickListener {
+            act.copyText("http://" + (lan.ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nAuthorization: Bearer " + app.relayKey)
+        }
+        root.findViewById<View>(R.id.btn_regen_key).setOnClickListener {
             MaterialAlertDialogBuilder(act).setTitle("Regenerate key?")
                 .setMessage("Clients must be reconfigured.")
-                .setPositiveButton("Regenerate") { _, _ -> app.regenerateKey(); act.toast("new key: " + app.relayKey) }
+                .setPositiveButton("Regenerate") { _, _ ->
+                    app.regenerateKey()
+                    root.findViewById<TextView>(R.id.tv_key).text = app.relayKey
+                    act.toast("key regenerated")
+                }
                 .setNegativeButton("Cancel", null).show()
         }
-    ))
-    val portEdit = EditText(act).apply { setText(app.port.toString()); inputType = android.text.InputType.TYPE_CLASS_NUMBER }
-    val portRow = LinearLayout(act).apply {
-        orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
-        addView(portEdit, LinearLayout.LayoutParams(0, -2, 1f).apply { marginEnd = act.dpv(8f) })
-        addView(act.actionBtn("apply") {
+        root.findViewById<View>(R.id.btn_apply_port).setOnClickListener {
             val p = portEdit.text.toString().toIntOrNull() ?: 0
-            app.changePort(p); act.toast("port " + app.port)
-        })
-    }
-    col.addView(act.card(TextView(act).apply { text = "SERVER PORT"; textSize = 11f; setTextColor(0xFF929292.toInt()) }, portRow))
-    col.addView(act.card(
-        TextView(act).apply { text = "FOREGROUND SERVICE"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-        act.body("keeps the relay alive when the screen is off"),
-        act.actionBtn(if (app.isRunning()) "stop server" else "start server") {
-            if (app.isRunning()) app.stopServer() else app.ensureServer(); act.toast(if (app.isRunning()) "running" else "stopped")
+            app.changePort(p)
+            root.findViewById<TextView>(R.id.tv_endpoint).text =
+                "http://" + (app.lanAddress().ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nhttp://127.0.0.1:" + app.port + "/v1"
+            act.toast("port " + app.port)
         }
-    ))
-    col.addView(act.card(
-        TextView(act).apply { text = "ACCOUNT AUTH"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-        act.body(if (app.repo.accounts.isEmpty()) "no accounts" else app.repo.accounts.joinToString("\n") {
-            "${it.label}: ${it.status} · ${it.kind} · token ${it.token.take(8)}… · cosy ${if (it.encInfo.isNotEmpty()) "ready" else "pending"}"
-        }, mono = true)
-    ))
-    col.addView(act.card(
-        TextView(act).apply { text = "COSY SIGNER"; textSize = 11f; setTextColor(0xFF929292.toInt()) },
-        act.body("vendor wasm signer (original module) running in an embedded JS engine — same signatures as the CLI.", mono = false),
-        act.actionBtn("self-test") {
+        val btnService = root.findViewById<com.google.android.material.button.MaterialButton>(R.id.btn_service)
+        btnService.text = if (app.isRunning()) "stop server" else "start server"
+        btnService.setOnClickListener {
+            if (app.isRunning()) app.stopServer() else app.ensureServer()
+            btnService.text = if (app.isRunning()) "stop server" else "start server"
+            act.toast(if (app.isRunning()) "running" else "stopped")
+        }
+        root.findViewById<TextView>(R.id.tv_auth).text = if (app.repo.accounts.isEmpty()) "no accounts"
+            else app.repo.accounts.joinToString("\n") {
+                "${it.label}: ${it.status} · token ${it.token.take(8)}… · cosy ${if (it.encInfo.isNotEmpty()) "ready" else "pending"}"
+            }
+        val signerTv = root.findViewById<TextView>(R.id.tv_signer_state)
+        fun showSignerState() {
+            signerTv.text = "state: " + app.signer.lastState + (if (app.signer.lastError.isNotEmpty()) " · " + app.signer.lastError.take(120) else "")
+        }
+        showSignerState()
+        root.findViewById<View>(R.id.btn_signer_test).setOnClickListener {
+            signerTv.text = "state: " + app.signer.lastState + " · testing…"
             act.lifecycleScope.launch {
                 val r = withContext(Dispatchers.IO) {
                     try {
-                        val f = app.signer.genFields("self", "self", "", java.util.UUID.randomUUID().toString())
-                        if (f.length() > 0) "ok — fields produced (${f.optString("key").length} chars key)" else "empty output"
+                        val f = app.signer.genFields("selftest", "selftest", "", java.util.UUID.randomUUID().toString())
+                        "ok — key " + f.optString("key").length + " chars"
                     } catch (e: Exception) { "failed: ${e.message}" }
                 }
                 act.toast(r)
+                showSignerState()
             }
         }
-    ))
-    col.addView(act.card(TextView(act).apply {
-        text = "qoder-relay v0.3 · protocol verified against the live gateway · APK built in CI"
-        textSize = 11.5f; setTextColor(0xFF929292.toInt())
-    }))
-    return act.scrollWrap(col)
+    }
 }

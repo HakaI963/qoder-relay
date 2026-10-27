@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<menu xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:id="@+id/tab_accounts" android:title="Accounts" android:icon="@drawable/ic_accounts" />
-    <item android:id="@+id/tab_models" android:title="Models" android:icon="@drawable/ic_models" />
-    <item android:id="@+id/tab_usage" android:title="Usage" android:icon="@drawable/ic_usage" />
-    <item android:id="@+id/tab_test" android:title="Test" android:icon="@drawable/ic_test" />
-    <item android:id="@+id/tab_settings" android:title="Settings" android:icon="@drawable/ic_settings" />
-</menu>

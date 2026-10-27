@@ -31,7 +31,6 @@ class RelayServer(
         val method = session.method
         return try {
             when {
-                uri == "" || uri == "/" -> serveDashboard()
                 uri == "/favicon.ico" -> textResponse("", Status.NO_CONTENT)
                 method == Method.GET && uri == "/v1/models" -> authed(session) { modelsCatalog() }
                 method == Method.POST && uri == "/v1/chat/completions" -> authed(session) { chatCompletions(session) }
@@ -54,12 +53,6 @@ class RelayServer(
     private fun authed(session: IHTTPSession, block: () -> Response): Response {
         if (!keyOk(session)) return errorJson(Status.UNAUTHORIZED, "invalid_api_key", "bad relay key")
         return block()
-    }
-
-    private fun serveDashboard(): Response {
-        val html = app.assets.open("dashboard.html").readBytes()
-        return newFixedLengthResponse(Status.OK, "text/html; charset=utf-8",
-            ByteArrayInputStream(html), html.size.toLong())
     }
 
     private fun modelsCatalog(): Response {

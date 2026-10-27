@@ -31,7 +31,19 @@ class RelayApp : Application() {
         val s = RelayServer(this, engine, port)
         s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
         server = s
+        serverError = ""
         return s
+    }
+
+    var serverError: String = ""
+    fun isRunning(): Boolean = server != null
+
+    fun ensureServer() {
+        if (server != null) return
+        try { startServer() } catch (e: Exception) {
+            serverError = e.message ?: "start failed"
+            // one retry on the next request
+        }
     }
 
     fun lanAddress(): String = try {

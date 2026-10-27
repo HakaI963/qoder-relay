@@ -1,8 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Relay" parent="Theme.AppCompat.NoActionBar">
-        <item name="android:windowBackground">#0D0D0D</item>
-        <item name="android:statusBarColor">#0D0D0D</item>
-        <item name="android:navigationBarColor">#0D0D0D</item>
+    <style name="Base.Relay" parent="Theme.Material3.DayNight.NoActionBar">
+        <item name="android:statusBarColor">?android:attr/colorBackground</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.Relay.Graphite" parent="Base.Relay">
+        <item name="android:colorBackground">@color/gr_bg</item>
+        <item name="colorSurface">@color/gr_surface</item>
+        <item name="colorSurfaceContainer">@color/gr_sidebar</item>
+        <item name="colorOutline">@color/gr_outline</item>
+        <item name="colorOnSurface">@color/gr_text</item>
+        <item name="colorOnSurfaceVariant">@color/gr_text2</item>
+        <item name="colorPrimary">@color/gr_btn</item>
+        <item name="colorOnPrimary">@color/gr_btn_text</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+
+    <style name="Theme.Relay.Warm" parent="Base.Relay">
+        <item name="android:colorBackground">@color/wm_bg</item>
+        <item name="colorSurface">@color/wm_surface</item>
+        <item name="colorSurfaceContainer">@color/wm_sidebar</item>
+        <item name="colorOutline">@color/wm_outline</item>
+        <item name="colorOnSurface">@color/wm_text</item>
+        <item name="colorOnSurfaceVariant">@color/wm_text2</item>
+        <item name="colorPrimary">@color/wm_btn</item>
+        <item name="colorOnPrimary">@color/wm_btn_text</item>
+        <item name="android:windowLightStatusBar">true</item>
+    </style>
+
+    <style name="Theme.Relay.Midnight" parent="Base.Relay">
+        <item name="android:colorBackground">@color/ms_bg</item>
+        <item name="colorSurface">@color/ms_surface</item>
+        <item name="colorSurfaceContainer">@color/ms_sidebar</item>
+        <item name="colorOutline">@color/ms_outline</item>
+        <item name="colorOnSurface">@color/ms_text</item>
+        <item name="colorOnSurfaceVariant">@color/ms_text2</item>
+        <item name="colorPrimary">@color/ms_btn</item>
+        <item name="colorOnPrimary">@color/ms_btn_text</item>
+        <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

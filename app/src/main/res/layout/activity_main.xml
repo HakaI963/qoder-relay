@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent" android:layout_height="?attr/actionBarSize"
+        android:background="?android:attr/colorBackground"
+        app:title="@string/app_name"
+        app:titleTextColor="?attr/colorOnSurface" />
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:orientation="vertical" android:padding="16dp">
+
+            <com.google.android.material.card.MaterialCardView
+                style="?attr/materialCardViewOutlinedStyle"
+                android:layout_width="match_parent" android:layout_height="wrap_content">
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:orientation="vertical" android:padding="16dp">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                        android:text="@string/sec_endpoint" android:textAllCaps="true" android:textSize="12sp"
+                        android:letterSpacing="0.06" android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView android:id="@+id/tv_url" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:fontFamily="monospace" android:textSize="14sp" android:paddingTop="8dp"
+                        android:textIsSelectable="true" android:textColor="?attr/colorOnSurface" />
+                    <TextView android:id="@+id/tv_key" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:fontFamily="monospace" android:textSize="13sp" android:paddingTop="4dp"
+                        android:textIsSelectable="true" android:textColor="?attr/colorOnSurfaceVariant" />
+                    <TextView android:id="@+id/tv_server_state" android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:textSize="12sp" android:paddingTop="8dp" android:textColor="?attr/colorOnSurfaceVariant" />
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                        android:orientation="horizontal" android:paddingTop="8dp">
+                        <com.google.android.material.button.MaterialButton android:id="@+id/btn_copy_url"
+                            style="@style/Widget.Material3.Button.OutlinedButton" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="@string/btn_copy" />
+                    </LinearLayout>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:orientation="horizontal" android:paddingTop="20dp" android:paddingBottom="8dp">
+                <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                    android:text="@string/sec_accounts" android:textSize="16sp" android:textStyle="bold"
+                    android:textColor="?attr/colorOnSurface" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/btn_add"
+                    style="@style/Widget.Material3.Button.TextButton" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:text="@string/add_account" />
+            </LinearLayout>
+
+            <TextView android:id="@+id/tv_no_accounts" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:text="No accounts yet — add one to get the OpenAI-compatible URL."
+                android:textColor="?attr/colorOnSurfaceVariant" android:textSize="13sp" android:paddingBottom="8dp" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/account_list" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:nestedScrollingEnabled="false" android:overScrollMode="never" />
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/sec_usage" android:textSize="16sp" android:textStyle="bold"
+                android:paddingTop="24dp" android:paddingBottom="4dp" android:textColor="?attr/colorOnSurface" />
+            <TextView android:id="@+id/tv_usage_totals" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="monospace" android:textSize="13sp" android:textColor="?attr/colorOnSurface" />
+            <TextView android:id="@+id/tv_usage_accounts" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="monospace" android:textSize="12sp" android:paddingTop="6dp" android:textColor="?attr/colorOnSurfaceVariant" />
+
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+                android:text="@string/sec_log" android:textSize="16sp" android:textStyle="bold"
+                android:paddingTop="24dp" android:paddingBottom="4dp" android:textColor="?attr/colorOnSurface" />
+            <TextView android:id="@+id/tv_log" android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:fontFamily="monospace" android:textSize="11sp" android:textColor="?attr/colorOnSurfaceVariant"
+                android:lineSpacingExtra="3dp" />
+
+            <View android:layout_width="match_parent" android:layout_height="24dp" />
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+</LinearLayout>

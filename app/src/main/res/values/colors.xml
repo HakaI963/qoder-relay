@@ -1,4 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="ic_bg">#0D0D0D</color>
+    <color name="gr_bg">#0D0D0D</color>
+    <color name="gr_surface">#171717</color>
+    <color name="gr_sidebar">#111111</color>
+    <color name="gr_outline">#292929</color>
+    <color name="gr_text">#F5F5F5</color>
+    <color name="gr_text2">#929292</color>
+    <color name="gr_btn">#F5F5F5</color>
+    <color name="gr_btn_text">#111111</color>
+
+    <color name="wm_bg">#F7F7F5</color>
+    <color name="wm_surface">#FFFFFF</color>
+    <color name="wm_sidebar">#F0F0ED</color>
+    <color name="wm_outline">#E5E5E0</color>
+    <color name="wm_text">#171717</color>
+    <color name="wm_text2">#737373</color>
+    <color name="wm_btn">#202020</color>
+    <color name="wm_btn_text">#FFFFFF</color>
+
+    <color name="ms_bg">#101114</color>
+    <color name="ms_surface">#191B20</color>
+    <color name="ms_sidebar">#141519</color>
+    <color name="ms_outline">#2A2C32</color>
+    <color name="ms_text">#EDEEF0</color>
+    <color name="ms_text2">#9699A2</color>
+    <color name="ms_btn">#EDEEF0</color>
+    <color name="ms_btn_text">#101114</color>
+
+    <color name="ok_g">#34D399</color>
+    <color name="err_g">#F87171</color>
+    <color name="warn_g">#FBBF24</color>
 </resources>

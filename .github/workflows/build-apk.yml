@@ -20,6 +20,18 @@ jobs:
         with:
           gradle-version: "8.9"
           cache-read-only: false
+      - name: Restore or seed stable debug keystore
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release download keystore-seed --pattern debug.keystore --dir app --clobber 2>/dev/null; then
+            echo "keystore restored"
+          else
+            keytool -genkeypair -keystore app/debug.keystore -storepass android -alias androiddebugkey \
+              -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=Android"
+            gh release create keystore-seed --title "keystore seed" --prerelease app/debug.keystore \
+              || gh release upload keystore-seed app/debug.keystore --clobber
+          fi
       - run: gradle --no-daemon assembleDebug
       - name: Publish APK as release asset
         env:

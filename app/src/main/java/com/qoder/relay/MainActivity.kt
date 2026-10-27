@@ -272,7 +272,7 @@ class MainActivity : AppCompatActivity() {
                     render()
                 }
             }
-            holder.chipGroupWrap(a)
+            a.chipGroupWrap(holder)
         }
 
         private fun Account.chipGroupWrap(vh: AccountAdapter.VH) {

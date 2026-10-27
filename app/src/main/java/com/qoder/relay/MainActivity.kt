@@ -25,7 +25,7 @@ class MainActivity : AppCompatActivity() {
         app.ensureServer()
 
         val nav = findViewById<BottomNavigationView>(R.id.bottom_nav)
-        nav.setOnItemSelectedListener { item -> showTab(item.itemId) }
+        nav.setOnItemSelectedListener { item -> showTab(item.itemId); true }
         if (savedInstanceState == null) showTab(R.id.tab_accounts)
     }
 

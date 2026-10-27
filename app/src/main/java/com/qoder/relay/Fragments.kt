@@ -45,6 +45,20 @@ import java.text.DateFormat
 fun Fragment.app() = requireContext().applicationContext as RelayApp
 fun View.ctx() = context.applicationContext as RelayApp
 fun Context.dpv(v: Float): Int = (v * resources.displayMetrics.density).toInt()
+fun Fragment.dpv(v: Float): Int = (v * resources.displayMetrics.density).toInt()
+fun Context.textCard(title: String, body: CharSequence): LinearLayout {
+    val pad = dpv(16f)
+    val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
+    card.addView(TextView(this).apply {
+        text = title.uppercase(); setTextColor(0xFF929292.toInt()); textSize = 11f; letterSpacing = 0.06f
+    })
+    card.addView(TextView(this).apply {
+        text = body; textSize = 13f; setPadding(0, dpv(6f), 0, 0)
+        typeface = android.graphics.Typeface.MONOSPACE; setTextIsSelectable(true)
+    })
+    return card
+}
+fun Fragment.textCard(title: String, body: CharSequence): LinearLayout = requireContext().textCard(title, body)
 fun fmtTok(n: Long): String = when {
     n >= 1_000_000 -> String.format("%.2fM", n / 1e6)
     n >= 1_000 -> String.format("%.1fk", n / 1e3)
@@ -57,19 +71,6 @@ fun Fragment.toast(m: String) =
 fun Fragment.copyText(t: String) {
     val cm = requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     cm.setPrimaryClip(ClipData.newPlainText("relay", t)); toast("copied")
-}
-
-fun Context.textCard(title: String, body: CharSequence): LinearLayout {
-    val pad = dpv(16f)
-    val card = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(pad, pad, pad, pad) }
-    card.addView(TextView(this).apply {
-        text = title.uppercase(); setTextColor(0xFF929292.toInt()); textSize = 11f; letterSpacing = 0.06f
-    })
-    card.addView(TextView(this).apply {
-        text = body; textSize = 13f; setPadding(0, dpv(6f), 0, 0)
-        typeface = android.graphics.Typeface.MONOSPACE; setTextIsSelectable(true)
-    })
-    return card
 }
 
 fun Fragment.vpad(h: Int = 12): View = View(requireContext()).apply {
@@ -314,8 +315,9 @@ class ModelsFragment : Fragment() {
     private fun rebuild() {
         host.removeAllViews()
         val app = app()
-        host.addView(MaterialCard(host.context).apply {
-            content = com.google.android.material.card.MaterialCardView(context).apply {
+        val rc = requireContext()
+        host.addView(MaterialCard(rc).apply {
+            content = com.google.android.material.card.MaterialCardView(rc).apply {
                 setPadding(dpv(14f), dpv(12f), dpv(14f), dpv(12f))
                 addView(context.textCard("routing rules",
                     "Universal = an account with an empty allow-list serves every model to any caller.\n" +
@@ -328,28 +330,28 @@ class ModelsFragment : Fragment() {
             val card = com.google.android.material.card.MaterialCardView(requireContext()).apply {
                 setPadding(dpv(14f), dpv(12f), dpv(14f), dpv(12f))
             }
-            val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-            val titleRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
-            titleRow.addView(TextView(context).apply { text = a.label; textSize = 15f; setTypeface(null, android.graphics.Typeface.BOLD) })
-            val universal = MaterialSwitch(context).apply {
+            val col = LinearLayout(rc).apply { orientation = LinearLayout.VERTICAL }
+            val titleRow = LinearLayout(rc).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+            titleRow.addView(TextView(rc).apply { text = a.label; textSize = 15f; setTypeface(null, android.graphics.Typeface.BOLD) })
+            val universal = MaterialSwitch(rc).apply {
                 isChecked = a.universal
                 layoutParams = LinearLayout.LayoutParams(-2, -2, 1f).apply { marginStart = dpv(10f) }
                 setOnCheckedChangeListener { _, on -> a.universal = on; app.repo.save() }
             }
             titleRow.addView(universal)
             col.addView(titleRow)
-            col.addView(TextView(context).apply {
+            col.addView(TextView(rc).apply {
                 text = "universal pool"; textSize = 11f; setTextColor(0xFF929292.toInt())
             })
-            val chips = ChipGroup(context)
+            val chips = ChipGroup(rc)
             col.addView(chips)
-            val row = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-            row.addView(TextView(context).apply {
+            val row = LinearLayout(rc).apply { orientation = LinearLayout.HORIZONTAL }
+            row.addView(TextView(rc).apply {
                 text = "all models (clear)"; textSize = 12f; setTextColor(0xFFEDEEF0.toInt())
                 setPadding(0, dpv(6f), dpv(16f), 0); isClickable = true
                 setOnClickListener { a.models.clear(); app.repo.save(); rebuild() }
             })
-            row.addView(TextView(context).apply {
+            row.addView(TextView(rc).apply {
                 text = "refresh models"; textSize = 12f; setTextColor(0xFFEDEEF0.toInt())
                 isClickable = true
                 setOnClickListener {
@@ -435,6 +437,7 @@ class UsageFragment : Fragment() {
     private fun render() {
         host.removeAllViews()
         val app = app()
+        val rc = requireContext()
         val a = app.repo.accounts
         val row1 = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
         row1.addView(stat("Tokens in", fmtTok(app.repo.totalIn())))
@@ -445,22 +448,22 @@ class UsageFragment : Fragment() {
         row2.addView(stat("Errors / FO", a.sumOf { it.errs } + " / " + a.sumOf { it.failovers }))
         host.addView(row2); host.addView(vpad(10))
 
-        host.addView(TextView(context).apply { text = "PER ACCOUNT"; textSize = 11f; setTextColor(0xFF929292.toInt()); letterSpacing = 0.06f })
+        host.addView(TextView(rc).apply { text = "PER ACCOUNT"; textSize = 11f; setTextColor(0xFF929292.toInt()); letterSpacing = 0.06f })
         val table = com.google.android.material.card.MaterialCardView(context).apply {
             setPadding(dpv(12f), dpv(8f), dpv(12f), dpv(8f))
             layoutParams = LinearLayout.LayoutParams(-1, -2)
         }
-        val col = LinearLayout(context).apply { orientation = LinearLayout.VERTICAL }
-        if (a.isEmpty()) col.addView(TextView(context).apply { text = "no accounts"; setTextColor(0xFF929292.toInt()) })
+        val col = LinearLayout(rc).apply { orientation = LinearLayout.VERTICAL }
+        if (a.isEmpty()) col.addView(TextView(rc).apply { text = "no accounts"; setTextColor(0xFF929292.toInt()) })
         a.forEach { acc ->
-            col.addView(TextView(context).apply {
+            col.addView(TextView(rc).apply {
                 text = "${acc.label}\nin ${fmtTok(acc.inTok)}   out ${fmtTok(acc.outTok)}   req ${acc.reqs}   err ${acc.errs}   fo ${acc.failovers}"
                 textSize = 12.5f; setPadding(0, dpv(6f), 0, dpv(6f))
             })
         }
         table.addView(col); host.addView(table); host.addView(vpad(10))
 
-        host.addView(TextView(context).apply { text = "RECENT REQUESTS"; textSize = 11f; setTextColor(0xFF929292.toInt()); letterSpacing = 0.06f })
+        host.addView(TextView(rc).apply { text = "RECENT REQUESTS"; textSize = 11f; setTextColor(0xFF929292.toInt()); letterSpacing = 0.06f })
         val logCard = com.google.android.material.card.MaterialCardView(context).apply {
             setPadding(dpv(12f), dpv(8f), dpv(12f), dpv(8f))
             layoutParams = LinearLayout.LayoutParams(-1, -2)
@@ -471,7 +474,7 @@ class UsageFragment : Fragment() {
                 sb.appendLine("${DateFormat.getTimeInstance(DateFormat.SHORT).format(java.util.Date(e.optLong("ts")))}  ${e.optString("state")}  ${e.optString("model")}  ${fmtTok(e.optLong("in"))}→${fmtTok(e.optLong("out"))}  ${e.optLong("ms")}ms  ${e.optString("account")}  ${(e.optString("status"))}")
             }
         }
-        logCard.addView(TextView(context).apply {
+        logCard.addView(TextView(rc).apply {
             text = if (sb.isEmpty()) "—" else sb.toString().trimEnd()
             textSize = 11f; typeface = android.graphics.Typeface.MONOSPACE; setTextIsSelectable(true)
         })
@@ -498,7 +501,7 @@ class TestFragment : Fragment() {
         streamBox = com.google.android.material.checkbox.MaterialCheckBox(ctx).apply { text = "stream"; isChecked = true }
         val btns = LinearLayout(ctx).apply { orientation = LinearLayout.HORIZONTAL }
         btns.addView(MaterialButton(ctx).apply { text = "Probe upstream"; setOnClickListener { probeDirect() } })
-        btns.addView(MaterialButton(ctx, null, com.google.android.material.R.attr.buttonOutlinedButtonStyle).apply {
+        btns.addView(MaterialButton(ctx, null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "Call relay"; layoutParams = LinearLayout.LayoutParams(-2, -2).apply { marginStart = dpv(8f) }
             setOnClickListener { callRelay() }
         })
@@ -557,7 +560,7 @@ class TestFragment : Fragment() {
                 }
             }
             statusTv.text = "done in " + a.reqs + " reqs so far · see raw below"
-            out.prepend(res + "\n---- stream ----\n")
+            out.text = res + "\n---- stream ----\n" + out.text
         }
     }
 
@@ -569,8 +572,8 @@ class TestFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
                 try {
-                    val conn = java.net.HttpURLConnection(
-                        java.net.URL("http://127.0.0.1:" + app.port + "/v1/chat/completions"))
+                    val conn = java.net.URL("http://127.0.0.1:" + app.port + "/v1/chat/completions")
+                        .openConnection() as java.net.HttpURLConnection
                     conn.requestMethod = "POST"
                     conn.connectTimeout = 20000; conn.readTimeout = 150000
                     conn.setRequestProperty("Content-Type", "application/json")
@@ -637,7 +640,7 @@ class SettingsFragment : Fragment() {
             "http://127.0.0.1:" + app.port + "/v1\n" +
             (if (app.isRunning()) "server: running" else "server: STOPPED " + app.serverError)))
         val copyRow = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL; setPadding(dpv(14f), 0, dpv(14f), dpv(10f)) }
-        copyRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.buttonOutlinedButtonStyle).apply {
+        copyRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "copy url + key"; setOnClickListener {
                 copyText("http://" + (lan.ifEmpty { "<wifi-ip>" }) + ":" + app.port + "/v1\nAuthorization: Bearer " + app.relayKey)
             }
@@ -646,7 +649,7 @@ class SettingsFragment : Fragment() {
 
         val keyCard = requireContext().textCard("relay api key (clients must send as bearer)", app.relayKey)
         val keyRow = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
-        keyRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.buttonOutlinedButtonStyle).apply {
+        keyRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "regenerate"; setOnClickListener {
                 MaterialAlertDialogBuilder(requireContext()).setTitle("Regenerate key?")
                     .setMessage("Clients must be reconfigured. The key cannot be recovered afterwards.")
@@ -691,7 +694,7 @@ class SettingsFragment : Fragment() {
 
         val gwRow = LinearLayout(requireContext()).apply { orientation = LinearLayout.HORIZONTAL }
         val gwTv = TextView(requireContext()).apply { textSize = 12f; setTextColor(0xFF929292.toInt()); gravity = Gravity.CENTER_VERTICAL }
-        gwRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.buttonOutlinedButtonStyle).apply {
+        gwRow.addView(MaterialButton(requireContext(), null, com.google.android.material.R.attr.materialButtonOutlinedStyle).apply {
             text = "ping gateway"; setOnClickListener {
                 gwTv.text = "…"
                 viewLifecycleOwner.lifecycleScope.launch {

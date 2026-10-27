@@ -1,6 +1,5 @@
 package com.qoder.relay
 
-import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -16,31 +15,18 @@ object QoderClient {
     const val WEB_CN = "https://qoder.com.cn"
     const val CLIENT_ID_GLOBAL = "e883ade2-e6e3-4d6d-adf7-f92ceff5fdcb"
     const val CLIENT_ID_CN = "e93fe488-5778-4c35-a6fc-0f54ed7b3139"
+    const val UA = "qoder-cli/1.1.79"
 
     private val jsonT = "application/json; charset=utf-8".toMediaType()
 
-    // Stale TLS paths exist for some DNS answers; pin known-good addresses (system DNS still consulted last).
-    private val pins = mapOf(
-        "center.qoder.sh" to listOf("8.211.12.32", "8.211.15.87", "8.212.124.35", "101.132.70.5", "47.57.243.249"),
-        "openapi.qoder.sh" to listOf("8.211.12.32", "8.211.15.87", "8.212.124.35"),
-        "api1.qoder.sh" to listOf("47.236.201.84", "47.236.187.196"),
-        "api3.qoder.sh" to listOf("8.212.20.107", "47.57.13.70", "39.107.242.82", "47.103.128.242")
-    )
-
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .dns(PinDns())
-            .connectTimeout(15, TimeUnit.SECONDS)
-            .readTimeout(0, TimeUnit.MILLISECONDS)
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .readTimeout(300, TimeUnit.SECONDS)
+            .callTimeout(150, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
-    }
-
-    class PinDns : Dns {
-        override fun lookup(hostname: String): List<java.net.InetAddress> {
-            val p = pins[hostname] ?: return Dns.SYSTEM.lookup(hostname)
-            return p.map { java.net.InetAddress.getByName(it) }
-        }
     }
 
     class LoginState(val verifier: String, val nonce: String, val challenge: String, val machineId: String)
@@ -68,7 +54,8 @@ object QoderClient {
     fun devicePoll(st: LoginState): JSONObject? {
         val url = "https://center.qoder.sh/api/v1/deviceToken/poll?nonce=${st.nonce}" +
             "&verifier=${st.verifier}&challenge_method=S256"
-        val req = Request.Builder().url(url).header("Accept", "application/json").build()
+        val req = Request.Builder().url(url).header("User-Agent", UA)
+            .header("Accept", "application/json").build()
         client.newCall(req).execute().use { r ->
             if (r.code == 404) return null
             val body = r.body?.string() ?: return null
@@ -81,6 +68,7 @@ object QoderClient {
         val req = Request.Builder()
             .url("https://openapi.qoder.sh/api/v1/jobToken/exchange")
             .header("Authorization", "Bearer $pat")
+            .header("User-Agent", UA)
             .post(JSONObject().put("personal_token", pat).toString().toRequestBody(jsonT))
             .build()
         client.newCall(req).execute().use { r ->
@@ -97,6 +85,7 @@ object QoderClient {
             .put("machine_id", a.machineId)
         val req = Request.Builder()
             .url("https://center.qoder.sh/api/v1/deviceToken/refresh")
+            .header("User-Agent", UA)
             .post(body.toString().toRequestBody(jsonT))
             .build()
         client.newCall(req).execute().use { r ->
@@ -135,6 +124,7 @@ object QoderClient {
             val req = Request.Builder()
                 .url("https://api3.qoder.sh$path")
                 .header("Authorization", "Bearer ${a.token}")
+                .header("User-Agent", UA)
                 .build()
             val resp = try { client.newCall(req).execute() } catch (_: Exception) { continue }
             resp.use { r ->
@@ -168,6 +158,7 @@ object QoderClient {
             .header("Content-Type", "application/json")
             .header("X-Request-ID", payload.getJSONObject("metadata").getJSONObject("context").getString("request_id"))
             .header("X-Session-ID", payload.getJSONObject("metadata").getJSONObject("context").getString("session_id"))
+            .header("User-Agent", UA)
             .post(payload.toString().toRequestBody(jsonT))
             .build()
         return client.newCall(req).execute()
@@ -187,5 +178,40 @@ object QoderClient {
         }
         inferBase = "https://api1.qoder.sh"
         return inferBase!!
+    }
+
+    /** Raw diagnostic probe against the generation endpoint; emits each SSE line, returns a summary. */
+    fun probeChat(a: Account, model: String, prompt: String, onLine: (String) -> Unit): String {
+        val reqId = java.util.UUID.randomUUID().toString()
+        val sessId = java.util.UUID.randomUUID().toString()
+        val payload = JSONObject()
+            .put("model", model)
+            .put("messages", org.json.JSONArray().put(JSONObject().put("role", "user").put("content", prompt)))
+            .put("stream", true)
+            .put("stream_options", JSONObject().put("include_usage", true))
+            .put("metadata", JSONObject().put("context", JSONObject()
+                .put("request_id", reqId).put("request_set_id", reqId)
+                .put("session_id", sessId).put("client_type", "cli")))
+        val sb = StringBuilder()
+        try {
+            val resp = openChat(a, payload)
+            resp.use { r ->
+                sb.append("HTTP ${r.code} ${r.message}\n")
+                r.headers.forEach { (k, v) -> if (k in setOf("content-type", "content-encoding", "x-request-id", "server")) sb.append("hdr $k: $v\n") }
+                val body = r.body
+                if (body == null) { sb.append("(no body)\n"); return sb.toString() }
+                val reader = java.io.BufferedReader(java.io.InputStreamReader(body.byteStream(), Charsets.UTF_8))
+                var n = 0
+                while (n < 60) {
+                    val line = reader.readLine() ?: break
+                    onLine(line.take(400)); n++
+                    if (line.contains("[DONE]")) break
+                }
+                if (n == 0) sb.append("(stream produced no lines)\n")
+            }
+        } catch (e: Exception) {
+            sb.append("EXCEPTION ${e.javaClass.simpleName}: ${e.message}\n")
+        }
+        return sb.toString()
     }
 }

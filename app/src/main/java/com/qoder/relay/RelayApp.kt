@@ -38,6 +38,24 @@ class RelayApp : Application() {
     var serverError: String = ""
     fun isRunning(): Boolean = server != null
 
+    fun setPort(newPort: Int) {
+        if (newPort in 1024..65534 && newPort != port) {
+            port = newPort
+            getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putInt("port", newPort).apply()
+            server?.stop(); server = null; ensureServer()
+        }
+    }
+
+    fun stopServer() {
+        try { server?.stop() } catch (_: Exception) { }
+        server = null
+    }
+
+    fun regenerateKey() {
+        relayKey = "sk-relay-" + UUID.randomUUID().toString().replace("-", "")
+        getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putString("key", relayKey).apply()
+    }
+
     fun ensureServer() {
         if (server != null) return
         try { startServer() } catch (e: Exception) {

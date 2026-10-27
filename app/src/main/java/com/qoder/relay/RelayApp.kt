@@ -44,6 +44,7 @@ class RelayApp : Application() {
             port = newPort
             getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putInt("port", newPort).apply()
             server?.stop(); server = null; ensureServer()
+            try { signer.resetTransport() } catch (_: Exception) { }
         }
     }
 

@@ -11,3 +11,4 @@ captures
 *.apk
 *.keystore
 !debug.keystore
+accounts.json

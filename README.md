@@ -11,6 +11,18 @@ OpenAI-compatible relay for your Qoder accounts, running as an on-device Android
 - **Model policy** — universal pool (any account can serve a model) or per-account allow-lists.
 - **Dashboard** — WebView admin UI with 3 themes (graphite / warm-neutral / midnight-slate).
 
+## Protocol
+
+The full wire protocol (device login, COSY wasm signing, inference SSE, model list) is documented in
+[`tools/PROTOCOL.md`](tools/PROTOCOL.md). A standalone, tested reference client lives in `tools/`:
+
+```bash
+cp tools/accounts.example.json tools/accounts.json   # fill dt-/drt-, uid, machine_id
+node tools/relay.mjs --port 8791                     # OpenAI-compatible test relay
+curl localhost:8791/v1/chat/completions -H "Authorization: Bearer sk-relay-test" \
+  -d '{"model":"qfmodel","messages":[{"role":"user","content":"hi"}]}'
+```
+
 ## Build
 
 The APK is compiled in GitHub Actions (`.github/workflows/build-apk.yml`) — no local Android SDK needed.

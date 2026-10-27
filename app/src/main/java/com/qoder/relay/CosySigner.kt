@@ -19,6 +19,10 @@ class CosySigner(private val app: RelayApp) {
     private var web: WebView? = null
     private var loaded = false
 
+    fun resetTransport() {
+        onMain { try { web?.destroy() } catch (_: Exception) { }; web = null; loaded = false }
+    }
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun ensureWeb() {
         if (web != null) return

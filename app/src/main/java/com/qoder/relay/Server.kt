@@ -32,6 +32,9 @@ class RelayServer(
         return try {
             when {
                 uri == "/favicon.ico" -> textResponse("", Status.NO_CONTENT)
+                uri == "/cosy/sign.html" -> assetResponse("cosy/sign.html", "text/html; charset=utf-8")
+                uri == "/cosy/auth_glue.js" -> assetResponse("cosy/auth_glue.js", "application/javascript")
+                uri == "/cosy/auth.wasm" -> assetResponse("cosy/auth.wasm", "application/wasm")
                 method == Method.GET && uri == "/v1/models" -> authed(session) { modelsCatalog() }
                 method == Method.POST && uri == "/v1/chat/completions" -> authed(session) { chatCompletions(session) }
                 uri.startsWith("/relay/") -> authed(session) { admin(session, uri, method) }
@@ -53,6 +56,11 @@ class RelayServer(
     private fun authed(session: IHTTPSession, block: () -> Response): Response {
         if (!keyOk(session)) return errorJson(Status.UNAUTHORIZED, "invalid_api_key", "bad relay key")
         return block()
+    }
+
+    private fun assetResponse(path: String, mime: String): Response {
+        val bytes = app.assets.open(path).readBytes()
+        return newFixedLengthResponse(Status.OK, mime, ByteArrayInputStream(bytes), bytes.size.toLong())
     }
 
     private fun modelsCatalog(): Response {
@@ -89,13 +97,18 @@ class RelayServer(
                 continue
             }
             val reqId = UUID.randomUUID().toString()
-            val payload = engine.buildGatewayPayload(acc, resolved, openai, reqId)
+            val sessionId = openai.optString("relay_session_id").ifEmpty { UUID.randomUUID().toString() }
+            val wire = engine.buildWire(resolved, openai, reqId, sessionId)
             val t0 = System.currentTimeMillis()
             try {
-                var resp = QoderClient.openChat(acc, payload)
-                if (resp.code == 401) {
+                var resp = QoderClient.openChat(acc, app.signer, wire, resolved)
+                if (resp.code == 401 || resp.code == 403) {
                     resp.close()
-                    if (QoderClient.deviceRefresh(acc) != null) resp = QoderClient.openChat(acc, payload)
+                    acc.needsFields = true
+                    if (QoderClient.deviceRefresh(acc) != null) {
+                        acc.needsFields = true
+                        resp = QoderClient.openChat(acc, app.signer, wire, resolved)
+                    }
                 }
                 if (!resp.isSuccessful) {
                     val err = resp.body?.string()?.take(300) ?: "http ${resp.code}"
@@ -159,6 +172,7 @@ class RelayServer(
                         emit("data: [DONE]\n\n"); done = true; continue
                     }
                     val inner = unwrap(data) ?: continue
+                    if (!inner.has("choices") && !inner.has("usage")) continue
                     trackUsage(inner)
                     emit("data: ${normalize(inner, id, model, created)}\n\n")
                 }
@@ -292,7 +306,12 @@ class RelayServer(
         } catch (e: Exception) {
             return errorJson(Status.BAD_REQUEST, "pat_exchange_failed", e.message ?: "")
         }
-        acc.discovered = QoderClient.listModelKeys(acc).toMutableList()
+        try {
+            QoderClient.ensureCosyFields(acc, app.signer)
+            val entries = QoderClient.listModels(acc, app.signer)
+            acc.discovered = entries.map { it.optString("key") }.filter { it.isNotEmpty() }.toMutableList()
+            entries.forEach { m -> val k = m.optString("key"); if (k.isNotEmpty()) engine.modelInfo[k] = m.optString("display_name") to m.optBoolean("is_reasoning") }
+        } catch (e: Exception) { acc.lastError = "models: " + (e.message ?: "").take(120) }
         app.repo.accounts.add(acc); app.repo.save()
         return jsonResponse(publicOf(acc).toString())
     }
@@ -320,7 +339,12 @@ class RelayServer(
                 acc.refreshToken = tokens.optString("refreshToken")
                 acc.expiresAt = tokens.getLong("expiresAt")
                 acc.status = "active"
-                acc.discovered = QoderClient.listModelKeys(acc).toMutableList()
+                try {
+                    QoderClient.ensureCosyFields(acc, app.signer)
+                    val entries = QoderClient.listModels(acc, app.signer)
+                    acc.discovered = entries.map { it.optString("key") }.filter { it.isNotEmpty() }.toMutableList()
+                    entries.forEach { m -> val k = m.optString("key"); if (k.isNotEmpty()) engine.modelInfo[k] = m.optString("display_name") to m.optBoolean("is_reasoning") }
+                } catch (e: Exception) { acc.lastError = "models: " + (e.message ?: "").take(120) }
                 app.repo.accounts.add(acc); app.repo.save()
                 pendingLoginStatus[loginId] = "ok:" + acc.id
             } catch (e: Exception) {
@@ -339,10 +363,19 @@ class RelayServer(
 
     private fun refreshModels(o: JSONObject): Response {
         val acc = app.repo.find(o.optString("account")) ?: return errorJson(Status.NOT_FOUND, "no_account", o.optString("account"))
-        val keys = QoderClient.listModelKeys(acc)
-        acc.discovered = keys.toMutableList()
-        app.repo.save()
-        return jsonResponse(JSONObject().put("models", JSONArray(keys)).toString())
+        return try {
+            val entries = QoderClient.listModels(acc, app.signer)
+            val keys = entries.map { it.optString("key") }.filter { it.isNotEmpty() }
+            entries.forEach { m ->
+                val k = m.optString("key")
+                if (k.isNotEmpty()) engine.modelInfo[k] = (m.optString("display_name").ifEmpty { k }) to m.optBoolean("is_reasoning")
+            }
+            acc.discovered = keys.toMutableList()
+            app.repo.save()
+            jsonResponse(JSONObject().put("models", JSONArray(keys)).toString())
+        } catch (e: Exception) {
+            errorJson(Status.INTERNAL_ERROR, "models_failed", e.message ?: "")
+        }
     }
 
     private fun patchAccount(acc: Account, o: JSONObject) {

@@ -22,6 +22,10 @@ class Account(
     var refreshToken: String = "",
     var expiresAt: Long = 0,                // epoch ms
     var machineId: String = UUID.randomUUID().toString(),
+    var uid: String = "",
+    var encInfo: String = "",
+    var cosyKey: String = "",
+    var needsFields: Boolean = true,
     var enabled: Boolean = true,
     var modelMode: String = "universal",    // universal | per_account
     var models: MutableList<String> = mutableListOf(),   // model keys this account may serve (empty = all discovered)
@@ -36,8 +40,10 @@ class Account(
     fun toJson() = JSONObject().apply {
         put("id", id); put("label", label); put("region", region); put("kind", kind)
         put("token", token); put("refreshToken", refreshToken); put("expiresAt", expiresAt)
-        put("machineId", machineId); put("enabled", enabled); put("modelMode", modelMode)
+        put("machineId", machineId); put("uid", uid); put("encInfo", encInfo); put("cosyKey", cosyKey)
+        put("needsFields", needsFields); put("enabled", enabled); put("modelMode", modelMode)
         put("models", JSONArray(models)); put("discovered", JSONArray(discovered)); put("universal", universal)
+        put("hasCosy", encInfo.isNotEmpty() && cosyKey.isNotEmpty())
         put("status", status); put("lastError", lastError)
         put("inTok", inTok); put("outTok", outTok); put("reqs", reqs); put("errs", errs)
         put("failovers", failovers); put("cooldownUntil", cooldownUntil)
@@ -58,6 +64,8 @@ class Account(
             region = o.optString("region", "global"); kind = o.optString("kind", "device")
             token = o.optString("token", ""); refreshToken = o.optString("refreshToken", "")
             expiresAt = o.optLong("expiresAt", 0); machineId = o.optString("machineId", machineId)
+            uid = o.optString("uid", ""); encInfo = o.optString("encInfo", "")
+            cosyKey = o.optString("cosyKey", ""); needsFields = o.optBoolean("needsFields", true)
             enabled = o.optBoolean("enabled", true); modelMode = o.optString("modelMode", "universal")
             universal = o.optBoolean("universal", true); status = o.optString("status", "unknown")
             lastError = o.optString("lastError", "")

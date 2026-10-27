@@ -7,8 +7,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.security.MessageDigest
-import java.util.concurrent.TimeUnit
 import java.util.Base64
+import java.util.concurrent.TimeUnit
 
 object QoderClient {
     const val WEB_GLOBAL = "https://qoder.com"
@@ -16,15 +16,16 @@ object QoderClient {
     const val CLIENT_ID_GLOBAL = "e883ade2-e6e3-4d6d-adf7-f92ceff5fdcb"
     const val CLIENT_ID_CN = "e93fe488-5778-4c35-a6fc-0f54ed7b3139"
     const val UA = "qoder-cli/1.1.79"
+    const val API_BASE = "https://api3.qoder.sh"
 
     private val jsonT = "application/json; charset=utf-8".toMediaType()
 
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .connectTimeout(20, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
             .readTimeout(300, TimeUnit.SECONDS)
-            .callTimeout(150, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(360, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
             .build()
     }
@@ -50,12 +51,10 @@ object QoderClient {
         return st to url
     }
 
-    /** Returns parsed {token, refreshToken, expiresAt} or null if still pending. */
     fun devicePoll(st: LoginState): JSONObject? {
         val url = "https://center.qoder.sh/api/v1/deviceToken/poll?nonce=${st.nonce}" +
             "&verifier=${st.verifier}&challenge_method=S256"
-        val req = Request.Builder().url(url).header("User-Agent", UA)
-            .header("Accept", "application/json").build()
+        val req = Request.Builder().url(url).header("User-Agent", UA).header("Accept", "application/json").build()
         client.newCall(req).execute().use { r ->
             if (r.code == 404) return null
             val body = r.body?.string() ?: return null
@@ -80,9 +79,7 @@ object QoderClient {
 
     fun deviceRefresh(a: Account): JSONObject? {
         if (a.refreshToken.isEmpty()) return null
-        val body = JSONObject()
-            .put("refresh_token", a.refreshToken)
-            .put("machine_id", a.machineId)
+        val body = JSONObject().put("refresh_token", a.refreshToken).put("machine_id", a.machineId)
         val req = Request.Builder()
             .url("https://center.qoder.sh/api/v1/deviceToken/refresh")
             .header("User-Agent", UA)
@@ -99,7 +96,8 @@ object QoderClient {
     }
 
     private fun parseTokens(o: JSONObject): JSONObject {
-        val token = o.optString("token").ifEmpty { o.optString("access_token") }
+        val token = o.optString("token").ifEmpty { o.optString("device_token") }
+            .ifEmpty { o.optString("access_token") }
         val refresh = o.optString("refresh_token").ifEmpty { o.optString("refreshToken") }
         val expires = when {
             o.has("expires_at") -> parseExpiry(o.get("expires_at"))
@@ -112,106 +110,73 @@ object QoderClient {
 
     private fun parseExpiry(v: Any): Long = when (v) {
         is Number -> if (v.toLong() > 1_000_000_000_000L) v.toLong() else v.toLong() * 1000
-        is String -> Regex("(\\d{4})-(\\d{2})-(\\d{2})T(\\d{2}):(\\d{2})").find(v)?.let {
-            java.time.OffsetDateTime.parse(if (v.endsWith("Z")) v else v + "Z").toInstant().toEpochMilli()
-        } ?: System.currentTimeMillis() + 8 * 3600_000
-        else -> System.currentTimeMillis() + 8 * 3600_000
+        is String -> try {
+            java.time.OffsetDateTime.parse(if (v.endsWith("Z")) v else v + "Z")
+                .toInstant().toEpochMilli()
+        } catch (_: Exception) { System.currentTimeMillis() + 30L * 86400_000 }
+        else -> System.currentTimeMillis() + 30L * 86400_000
     }
 
-    /** Fetch model keys for an account from the inference gateway. */
-    fun listModelKeys(a: Account): List<String> {
-        for (path in listOf("/api/v2/model/list", "/algo/api/v2/model/list")) {
-            val req = Request.Builder()
-                .url("https://api3.qoder.sh$path")
-                .header("Authorization", "Bearer ${a.token}")
-                .header("User-Agent", UA)
-                .build()
-            val resp = try { client.newCall(req).execute() } catch (_: Exception) { continue }
-            resp.use { r ->
-                if (!r.isSuccessful) return@use
-                val txt = r.body?.string() ?: return@use
-                return extractKeys(JSONObject(txt))
-            }
-        }
-        return emptyList()
-    }
-
-    private fun extractKeys(o: JSONObject): List<String> {
-        val arr = o.optJSONArray("data") ?: o.optJSONArray("models") ?: JSONArray()
-        val out = ArrayList<String>()
-        for (i in 0 until arr.length()) {
-            val m = arr.optJSONObject(i) ?: continue
-            if (m.has("is_enabled") && !m.getBoolean("is_enabled")) continue
-            val k = m.optString("key").ifEmpty { m.optString("id") }
-            if (k.isNotEmpty()) out.add(k)
-        }
-        return out
-    }
-
-    /** Open POST stream at the chat generation endpoint; caller closes response. */
-    fun openChat(a: Account, payload: JSONObject): okhttp3.Response {
-        val url = firstInferBase() + "/algo/api/v2/service/pro/sse/agent_chat_generation"
+    /** Plain-bearer userinfo (works without COSY): returns the account uid. */
+    fun fetchUid(token: String): String {
         val req = Request.Builder()
-            .url(url)
-            .header("Authorization", "Bearer ${a.token}")
-            .header("Accept", "text/event-stream")
-            .header("Content-Type", "application/json")
-            .header("X-Request-ID", payload.getJSONObject("metadata").getJSONObject("context").getString("request_id"))
-            .header("X-Session-ID", payload.getJSONObject("metadata").getJSONObject("context").getString("session_id"))
+            .url("https://center.qoder.sh/api/v1/userinfo")
+            .header("Authorization", "Bearer $token")
             .header("User-Agent", UA)
-            .post(payload.toString().toRequestBody(jsonT))
+            .build()
+        client.newCall(req).execute().use { r ->
+            if (!r.isSuccessful) return ""
+            return JSONObject(r.body?.string() ?: "{}").optString("id")
+        }
+    }
+
+    /** Make sure the account has fresh COSY auth fields for its current token. */
+    fun ensureCosyFields(a: Account, signer: CosySigner) {
+        if (!a.needsFields && a.encInfo.isNotEmpty() && a.cosyKey.isNotEmpty()) return
+        if (a.uid.isEmpty()) a.uid = fetchUid(a.token)
+        val fields = signer.genFields(a.token, a.refreshToken, a.uid, a.machineId)
+        a.encInfo = fields.optString("encrypt_user_info")
+        a.cosyKey = fields.optString("key")
+        a.needsFields = false
+    }
+
+    /** Model catalog entry: key -> (displayName, isReasoning). */
+    fun listModels(a: Account, signer: CosySigner): List<JSONObject> {
+        ensureCosyFields(a, signer)
+        signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
+        val signed = signer.signRequest(API_BASE, "/algo/api/v2/model/list", "GET")
+        val req = Request.Builder()
+            .url(signed.getString("url"))
+            .apply {
+                val h = signed.getJSONObject("headers")
+                h.keys().forEach { k ->
+                    if (!k.equals("host", true) && !k.equals("content-length", true)) header(k, h.getString(k))
+                }
+            }
+            .get().build()
+        client.newCall(req).execute().use { r ->
+            if (!r.isSuccessful) throw RuntimeException("models ${r.code}: ${r.body?.string()?.take(160)}")
+            val o = JSONObject(r.body?.string() ?: "{}")
+            val arr = o.optJSONArray("chat") ?: o.optJSONArray("assistant") ?: JSONArray()
+            return (0 until arr.length()).map { arr.getJSONObject(it) }
+        }
+    }
+
+    /** Prepare the COSY-signed inference request. */
+    fun openChat(a: Account, signer: CosySigner, wireBody: JSONObject, modelKey: String): okhttp3.Response {
+        ensureCosyFields(a, signer)
+        signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
+        val signed = signer.signInfer(API_BASE, wireBody.toString(), modelKey, "system")
+        val req = Request.Builder()
+            .url(signed.getString("url"))
+            .apply {
+                val h = signed.getJSONObject("headers")
+                h.keys().forEach { k ->
+                    if (!k.equals("host", true) && !k.equals("content-length", true)) header(k, h.getString(k))
+                }
+            }
+            .post(signed.getString("body").toRequestBody(jsonT))
             .build()
         return client.newCall(req).execute()
-    }
-
-    @Volatile private var inferBase: String? = null
-    fun firstInferBase(): String {
-        inferBase?.let { return it }
-        // Discovery would go through /api/v3/service/region/endpoints; default to api1 (observed elected endpoint).
-        for (h in listOf("api1.qoder.sh", "api3.qoder.sh")) {
-            try {
-                val req = Request.Builder().url("https://$h/algo/api/v1/ping").build()
-                client.newCall(req).execute().use { r ->
-                    if (r.code < 500) { inferBase = "https://$h"; return inferBase!! }
-                }
-            } catch (_: Exception) { }
-        }
-        inferBase = "https://api1.qoder.sh"
-        return inferBase!!
-    }
-
-    /** Raw diagnostic probe against the generation endpoint; emits each SSE line, returns a summary. */
-    fun probeChat(a: Account, model: String, prompt: String, onLine: (String) -> Unit): String {
-        val reqId = java.util.UUID.randomUUID().toString()
-        val sessId = java.util.UUID.randomUUID().toString()
-        val payload = JSONObject()
-            .put("model", model)
-            .put("messages", org.json.JSONArray().put(JSONObject().put("role", "user").put("content", prompt)))
-            .put("stream", true)
-            .put("stream_options", JSONObject().put("include_usage", true))
-            .put("metadata", JSONObject().put("context", JSONObject()
-                .put("request_id", reqId).put("request_set_id", reqId)
-                .put("session_id", sessId).put("client_type", "cli")))
-        val sb = StringBuilder()
-        try {
-            val resp = openChat(a, payload)
-            resp.use { r ->
-                sb.append("HTTP ${r.code} ${r.message}\n")
-                r.headers.forEach { (k, v) -> if (k in setOf("content-type", "content-encoding", "x-request-id", "server")) sb.append("hdr $k: $v\n") }
-                val body = r.body
-                if (body == null) { sb.append("(no body)\n"); return sb.toString() }
-                val reader = java.io.BufferedReader(java.io.InputStreamReader(body.byteStream(), Charsets.UTF_8))
-                var n = 0
-                while (n < 60) {
-                    val line = reader.readLine() ?: break
-                    onLine(line.take(400)); n++
-                    if (line.contains("[DONE]")) break
-                }
-                if (n == 0) sb.append("(stream produced no lines)\n")
-            }
-        } catch (e: Exception) {
-            sb.append("EXCEPTION ${e.javaClass.simpleName}: ${e.message}\n")
-        }
-        return sb.toString()
     }
 }

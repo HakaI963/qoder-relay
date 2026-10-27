@@ -10,6 +10,7 @@ class RelayApp : Application() {
         private set
     lateinit var engine: RelayEngine
         private set
+    val signer: CosySigner by lazy { CosySigner(this) }
     var relayKey: String = ""
         private set
     var port: Int = RelayServer.PORT_DEFAULT

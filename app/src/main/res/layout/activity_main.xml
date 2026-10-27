@@ -10,13 +10,15 @@
         android:background="?android:attr/colorBackground"
         app:title="@string/app_name" app:titleTextColor="?attr/colorOnSurface" />
 
-    <FrameLayout android:id="@+id/fragment_container"
-        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
-
-    <com.google.android.material.bottomnavigation.BottomNavigationView
-        android:id="@+id/bottom_nav"
+    <com.google.android.material.tabs.TabLayout
+        android:id="@+id/tabs"
         android:layout_width="match_parent" android:layout_height="wrap_content"
         android:background="?attr/colorSurface"
-        app:menu="@menu/bottom_nav"
-        app:labelVisibilityMode="labeled" />
+        app:tabMode="scrollable"
+        app:tabIndicatorColor="?attr/colorOnSurface"
+        app:tabTextColor="?attr/colorOnSurfaceVariant"
+        app:tabSelectedTextColor="?attr/colorOnSurface" />
+
+    <FrameLayout android:id="@+id/tab_container"
+        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" />
 </LinearLayout>

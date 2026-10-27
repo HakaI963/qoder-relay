@@ -150,6 +150,7 @@ class RelayServer(
             private var inTok = 0L
             private var outTok = 0L
             private var usageSeen = false
+            private var settled = false
 
             private fun emit(s: String) { s.toByteArray(StandardCharsets.UTF_8).forEach { queue.add(it) } }
 

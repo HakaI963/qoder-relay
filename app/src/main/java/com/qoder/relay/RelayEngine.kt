@@ -20,7 +20,7 @@ class RelayEngine(val repo: AccountRepo) {
     fun candidates(requestedModel: String?, pinnedAccountId: String?): Pair<List<Account>, String> {
         if (pinnedAccountId != null) {
             val a = repo.find(pinnedAccountId)
-            if (a != null) return listOf(a) to resolveModel(a, requestedModel)
+            if (a != null) return listOf(a) to resolveModel(a, requestedModel ?: "qfmodel")
         }
         val list = usableFor(null)
         val ordered = list.sortedBy { rr.getAndIncrement() % 1000000 }
@@ -34,7 +34,8 @@ class RelayEngine(val repo: AccountRepo) {
         val prefix = "qoder-"
         if (model.startsWith(prefix)) {
             val bare = model.removePrefix(prefix)
-            models.firstOrNull { it.contains(bare, true) }?.let { return it }
+            account.models.firstOrNull { k -> k.contains(bare, true) }?.let { return it }
+            account.discovered.firstOrNull { k -> k.contains(bare, true) }?.let { return it }
         }
         return model
     }

@@ -1,0 +1,1060 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="midnight">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark light">
+<title>Qoder Relay</title>
+<style>
+/* ---------------------------------------------------------------- tokens */
+:root {
+  --bg: #0a0c10; --bg2: #0e1116; --panel: #12161d; --panel2: #171c25; --line: #222a36;
+  --line2: #2c3746; --text: #e8ebf0; --dim: #97a2b3; --dim2: #6c7889;
+  --accent: #7aa2ff; --accent2: #4ad4c4; --ok: #35d399; --warn: #f5b544; --err: #ff6b6b;
+  --chip: #1a2029; --shadow: 0 10px 30px rgba(0,0,0,.45);
+  --radius: 14px; --radius-sm: 9px;
+}
+html[data-theme="graphite"] {
+  --bg: #0f0f10; --bg2: #141416; --panel: #1a1a1d; --panel2: #202024; --line: #2b2b31;
+  --line2: #383840; --text: #f4f4f5; --dim: #9d9da6; --dim2: #71717a; --accent: #f4f4f5;
+  --accent2: #a1a1aa; --chip: #202024;
+}
+html[data-theme="warm"] {
+  --bg: #f6f5f2; --bg2: #efece6; --panel: #ffffff; --panel2: #f7f6f3; --line: #e2ded5;
+  --line2: #d3cec2; --text: #1b1b1a; --dim: #6b675f; --dim2: #938e84; --accent: #1f4fd8;
+  --accent2: #0f8f7a; --ok: #12874f; --warn: #a4650a; --err: #c0392b; --chip: #f0ede7;
+  --shadow: 0 8px 22px rgba(60,50,30,.10);
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--bg); color: var(--text); font: 14px/1.5 -apple-system, "Segoe UI", Roboto,
+          "Noto Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+code, .mono { font-family: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace; }
+a { color: var(--accent); }
+button, input, select, textarea { font: inherit; color: inherit; }
+
+/* ---------------------------------------------------------------- layout */
+.app { display: flex; min-height: 100vh; }
+.nav {
+  width: 214px; flex: 0 0 214px; border-right: 1px solid var(--line); background: var(--bg2);
+  padding: 18px 12px; display: flex; flex-direction: column; gap: 4px; position: sticky; top: 0;
+  height: 100vh;
+}
+.brand { display: flex; align-items: center; gap: 10px; padding: 4px 10px 16px; }
+.logo {
+  width: 30px; height: 30px; border-radius: 9px; flex: 0 0 30px;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  display: grid; place-items: center; color: #06090c; font-weight: 800; font-size: 15px;
+}
+.brand b { font-size: 15px; letter-spacing: -.2px; display: block; }
+.brand span { font-size: 11px; color: var(--dim2); display: block; margin-top: -2px; }
+.nav button {
+  display: flex; align-items: center; gap: 10px; width: 100%; text-align: left; background: none;
+  border: 0; border-radius: var(--radius-sm); padding: 10px 11px; color: var(--dim); cursor: pointer;
+  font-weight: 550; transition: .14s;
+}
+.nav button .ico { width: 17px; text-align: center; opacity: .85; }
+.nav button:hover { background: var(--panel); color: var(--text); }
+.nav button.on { background: var(--panel2); color: var(--text); box-shadow: inset 2px 0 0 var(--accent); }
+.nav .spacer { flex: 1; }
+.nav .foot { font-size: 11px; color: var(--dim2); padding: 10px 11px; border-top: 1px solid var(--line); }
+
+main { flex: 1; min-width: 0; padding: 22px 26px 60px; max-width: 1220px; }
+h1 { font-size: 21px; margin: 0 0 3px; letter-spacing: -.4px; }
+.sub { color: var(--dim); font-size: 13px; margin: 0 0 20px; }
+section { display: none; }
+section.on { display: block; animation: fade .18s ease; }
+@keyframes fade { from { opacity: 0; transform: translateY(4px); } }
+
+.grid { display: grid; gap: 14px; }
+.g2 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.g3 { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
+.g4 { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+.card {
+  background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+  padding: 16px; box-shadow: var(--shadow);
+}
+.card h3 { margin: 0 0 4px; font-size: 13px; letter-spacing: .02em; }
+.card .hint { color: var(--dim2); font-size: 12px; margin: 0 0 12px; }
+.rowline { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+
+/* ---------------------------------------------------------------- pieces */
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 13px 15px; }
+.stat .k { font-size: 11px; text-transform: uppercase; letter-spacing: .07em; color: var(--dim2); }
+.stat .v { font-size: 22px; font-weight: 700; letter-spacing: -.5px; margin-top: 3px; }
+.stat .n { font-size: 11.5px; color: var(--dim); }
+
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 999px;
+  font-size: 11.5px; font-weight: 650; border: 1px solid var(--line2); background: var(--chip); color: var(--dim);
+  white-space: nowrap;
+}
+.dot { width: 7px; height: 7px; border-radius: 50%; background: var(--dim2); flex: 0 0 7px; }
+.pill.ok    { color: var(--ok);   border-color: color-mix(in srgb, var(--ok) 40%, var(--line)); }
+.pill.ok .dot    { background: var(--ok); }
+.pill.warn  { color: var(--warn); border-color: color-mix(in srgb, var(--warn) 40%, var(--line)); }
+.pill.warn .dot  { background: var(--warn); }
+.pill.err   { color: var(--err);  border-color: color-mix(in srgb, var(--err) 40%, var(--line)); }
+.pill.err .dot   { background: var(--err); }
+.pill.live .dot  { background: var(--accent2); animation: pulse 1.1s infinite; }
+@keyframes pulse { 50% { opacity: .25; } }
+
+.btn {
+  border: 1px solid var(--line2); background: var(--panel2); color: var(--text);
+  border-radius: var(--radius-sm); padding: 8px 13px; cursor: pointer; font-weight: 600; font-size: 13px;
+  transition: .14s; display: inline-flex; align-items: center; gap: 7px;
+}
+.btn:hover { border-color: var(--accent); }
+.btn:active { transform: translateY(1px); }
+.btn.pri { background: linear-gradient(135deg, var(--accent), var(--accent2)); color: #06090c; border: 0; }
+.btn.sm { padding: 5px 9px; font-size: 12px; border-radius: 8px; }
+.btn.danger { color: var(--err); }
+.btn:disabled { opacity: .45; cursor: not-allowed; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+input[type=text], input[type=password], input[type=number], select, textarea {
+  background: var(--bg2); border: 1px solid var(--line2); border-radius: var(--radius-sm);
+  padding: 9px 11px; width: 100%; outline: none; transition: .14s;
+}
+input:focus, select:focus, textarea:focus { border-color: var(--accent); }
+textarea { resize: vertical; min-height: 90px; font-family: inherit; }
+label.f { display: block; font-size: 11.5px; color: var(--dim2); margin: 0 0 5px; text-transform: uppercase; letter-spacing: .06em; }
+
+.sw { position: relative; width: 40px; height: 23px; flex: 0 0 40px; cursor: pointer; }
+.sw input { opacity: 0; width: 0; height: 0; }
+.sw i {
+  position: absolute; inset: 0; background: var(--line2); border-radius: 999px; transition: .18s;
+}
+.sw i:after {
+  content: ""; position: absolute; width: 17px; height: 17px; border-radius: 50%; background: #fff;
+  top: 3px; left: 3px; transition: .18s;
+}
+.sw input:checked + i { background: var(--accent); }
+.sw input:checked + i:after { transform: translateX(17px); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line2); background: var(--chip); color: var(--dim); border-radius: 999px;
+  padding: 3px 10px; font-size: 11.5px; cursor: pointer; user-select: none; transition: .13s;
+}
+.chip.on { color: var(--text); border-color: var(--accent); background: color-mix(in srgb, var(--accent) 16%, var(--chip)); }
+.chip.lock { cursor: default; opacity: .8; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; color: var(--dim2); font-weight: 600; font-size: 11px; text-transform: uppercase;
+     letter-spacing: .06em; padding: 7px 9px; border-bottom: 1px solid var(--line); }
+td { padding: 7px 9px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+tbody tr:hover { background: var(--panel2); }
+.scroll { overflow: auto; max-height: 460px; border-radius: var(--radius); }
+
+pre.out {
+  background: var(--bg2); border: 1px solid var(--line); border-radius: var(--radius-sm);
+  padding: 12px; white-space: pre-wrap; word-break: break-word; max-height: 340px; overflow: auto;
+  font-size: 12.5px; margin: 0;
+}
+.kv { display: grid; grid-template-columns: 132px 1fr; gap: 5px 12px; font-size: 12.5px; }
+.kv b { color: var(--dim2); font-weight: 600; }
+.bar { height: 4px; border-radius: 3px; background: var(--line); overflow: hidden; margin-top: 5px; }
+.bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); }
+
+.acct { border-left: 3px solid var(--line2); }
+.acct.s-active { border-left-color: var(--ok); }
+.acct.s-error, .acct.s-auth_error { border-left-color: var(--err); }
+.acct.s-cooling { border-left-color: var(--warn); }
+
+.toast {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%) translateY(20px);
+  background: var(--panel2); border: 1px solid var(--line2); color: var(--text); padding: 10px 16px;
+  border-radius: 11px; box-shadow: var(--shadow); opacity: 0; pointer-events: none; transition: .22s; z-index: 60;
+  max-width: 88vw;
+}
+.toast.on { opacity: 1; transform: translateX(-50%); }
+
+.mask {
+  position: fixed; inset: 0; background: rgba(0,0,0,.6); display: none; place-items: center;
+  z-index: 70; padding: 18px;
+}
+.mask.on { display: grid; }
+.modal { background: var(--panel); border: 1px solid var(--line2); border-radius: var(--radius); padding: 18px; width: 100%; max-width: 520px; }
+
+.gate { min-height: 100vh; display: grid; place-items: center; padding: 20px; }
+.gate .box { width: 100%; max-width: 380px; text-align: center; }
+
+@media (max-width: 880px) {
+  .app { flex-direction: column; }
+  .nav { width: auto; height: auto; flex-direction: row; position: sticky; top: 0; z-index: 20;
+         overflow-x: auto; padding: 8px; gap: 6px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .brand { padding: 0 8px 0 4px; flex: 0 0 auto; }
+  .brand div { display: none; }
+  .nav button { width: auto; padding: 8px 12px; flex: 0 0 auto; font-size: 12.5px; }
+  .nav .spacer, .nav .foot { display: none; }
+  main { padding: 16px 14px 50px; }
+  .kv { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate" style="display:none">
+  <div class="box card">
+    <div class="logo" style="margin:0 auto 12px">Q</div>
+    <h1>Qoder Relay</h1>
+    <p class="sub" style="margin:0 0 16px">Enter the relay key shown in the app under Settings → API key.</p>
+    <input id="gateKey" type="password" placeholder="sk-relay-…" autocomplete="off">
+    <div class="btnrow" style="justify-content:center;margin-top:12px">
+      <button class="btn pri" onclick="gateSubmit()">Unlock</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app" style="display:none">
+  <nav class="nav">
+    <div class="brand">
+      <div class="logo">Q</div>
+      <div><b>Qoder Relay</b><span id="ver">v0.2.0</span></div>
+    </div>
+    <button data-view="overview" class="on"><span class="ico">◧</span> Overview</button>
+    <button data-view="accounts"><span class="ico">◉</span> Accounts <span id="navAcc" class="pill" style="margin-left:auto">0</span></button>
+    <button data-view="models"><span class="ico">⌘</span> Models</button>
+    <button data-view="usage"><span class="ico">▤</span> Usage</button>
+    <button data-view="console"><span class="ico">▶</span> Console</button>
+    <button data-view="settings"><span class="ico">⚙</span> Settings</button>
+    <div class="spacer"></div>
+    <div class="foot" id="foot">—</div>
+  </nav>
+
+  <main>
+    <!-- ============================================ OVERVIEW -->
+    <section id="v-overview" class="on">
+      <h1>Overview</h1>
+      <p class="sub">One OpenAI-compatible endpoint, pooled across your Qoder accounts.</p>
+
+      <div class="card" style="margin-bottom:14px">
+        <div class="rowline" style="align-items:flex-start">
+          <div style="min-width:0;flex:1">
+            <h3>Endpoint</h3>
+            <p class="hint" id="epHint">base URL + key for any OpenAI SDK</p>
+            <div class="kv" style="margin-top:8px">
+              <b>Base URL</b>
+              <div><code id="epBase" style="word-break:break-all">—</code>
+                <button class="btn sm" style="margin-left:8px" onclick="copy(el('epBase').textContent)">copy</button></div>
+              <b>API key</b>
+              <div><code id="epKey">••••••••••••</code>
+                <button class="btn sm" onclick="toggleKey()">(show)</button>
+                <button class="btn sm" onclick="copy(KEY)">copy</button></div>
+              <b>cURL</b>
+              <div><button class="btn sm" onclick="copy(curlSnippet())">copy request snippet</button></div>
+            </div>
+          </div>
+          <div style="text-align:right">
+            <span class="pill" id="srvPill"><span class="dot"></span> checking</span>
+            <div style="margin-top:10px" class="btnrow">
+              <button class="btn sm" onclick="refresh(true)">refresh</button>
+              <button class="btn sm" id="btnSrv" onclick="toggleServer()">start</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid g4" style="margin-bottom:14px">
+        <div class="stat"><div class="k">Requests</div><div class="v" id="sReqs">0</div><div class="n" id="sReqsN">—</div></div>
+        <div class="stat"><div class="k">Tokens in</div><div class="v" id="sIn">0</div><div class="n">cumulative</div></div>
+        <div class="stat"><div class="k">Tokens out</div><div class="v" id="sOut">0</div><div class="n">cumulative</div></div>
+        <div class="stat"><div class="k">In flight</div><div class="v" id="sFly">0</div><div class="n" id="sFlyN">idle</div></div>
+      </div>
+
+      <div class="grid g2">
+        <div class="card">
+          <h3>Pool</h3>
+          <p class="hint">live accounts, errors and cooldowns</p>
+          <div id="ovPool"></div>
+        </div>
+        <div class="card">
+          <h3>Recent latency</h3>
+          <p class="hint">time to first byte per request (last 14)</p>
+          <div id="ovLat"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:14px">
+        <div class="rowline"><h3>Latest events</h3>
+          <button class="btn sm" onclick="go('usage')">open usage log →</button></div>
+        <div class="scroll" style="margin-top:10px"><table><thead><tr>
+          <th>time</th><th>account</th><th>model</th><th>state</th><th>ttfb</th><th>total</th><th>tok in→out</th>
+        </tr></thead><tbody id="ovEvents"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ============================================ ACCOUNTS -->
+    <section id="v-accounts">
+      <h1>Accounts</h1>
+      <p class="sub">Device sign-in (no password handling) or a Personal Access Token. The pool rotates
+        requests across enabled accounts and parks any that fail.</p>
+
+      <div class="btnrow" style="margin-bottom:16px">
+        <button class="btn pri" onclick="openLogin()">＋ Sign in with Qoder</button>
+        <button class="btn" onclick="openPat()">＋ Paste PAT (pt-…)</button>
+        <button class="btn" onclick="refreshModelsAll()">⟳ Refresh all model lists</button>
+      </div>
+      <div class="grid" id="acctList"></div>
+    </section>
+
+    <!-- ============================================ MODELS -->
+    <section id="v-models">
+      <h1>Models</h1>
+      <p class="sub">Every key the relay knows about, and which accounts answer for it. Uncheck a model
+        on an account to build a per-account allow-list; with no checks the account serves everything.</p>
+      <div class="card" style="margin-bottom:14px">
+        <div class="rowline"><h3>Catalog</h3><button class="btn sm" onclick="refreshModelsAll()">⟳ refresh</button></div>
+        <div class="scroll" style="margin-top:10px"><table><thead><tr>
+          <th>key</th><th>name</th><th>reasoning</th><th>served by</th><th>aliases</th>
+        </tr></thead><tbody id="modelRows"></tbody></table></div>
+      </div>
+      <div class="grid g2" id="modelPerms"></div>
+    </section>
+
+    <!-- ============================================ USAGE -->
+    <section id="v-usage">
+      <h1>Usage</h1>
+      <p class="sub">Token accounting per account plus the request log the failover router writes.</p>
+      <div class="grid g4" style="margin-bottom:14px">
+        <div class="stat"><div class="k">Total in</div><div class="v" id="uIn">0</div></div>
+        <div class="stat"><div class="k">Total out</div><div class="v" id="uOut">0</div></div>
+        <div class="stat"><div class="k">Errors</div><div class="v" id="uErr">0</div><div class="n" id="uFov">—</div></div>
+        <div class="stat"><div class="k">Median ttfb</div><div class="v" id="uTtfb">—</div><div class="n">first byte</div></div>
+      </div>
+      <div class="card" style="margin-bottom:14px">
+        <h3>Per account</h3>
+        <p class="hint">share of tokens served</p>
+        <div id="uBars"></div>
+      </div>
+      <div class="card">
+        <div class="rowline"><h3>Request log</h3>
+          <div class="btnrow">
+            <button class="btn sm" onclick="setFilter('all')" id="f-all">all</button>
+            <button class="btn sm" onclick="setFilter('ok')" id="f-ok">ok</button>
+            <button class="btn sm" onclick="setFilter('failover')" id="f-failover">failovers</button>
+            <button class="btn sm" onclick="clearLog()">clear view</button>
+          </div>
+        </div>
+        <div class="scroll" style="margin-top:10px;max-height:60vh"><table><thead><tr>
+          <th>time</th><th>account</th><th>model</th><th>state</th><th>http</th><th>ttfb</th><th>total</th>
+          <th>tok</th><th>note</th>
+        </tr></thead><tbody id="logRows"></tbody></table></div>
+      </div>
+    </section>
+
+    <!-- ============================================ CONSOLE -->
+    <section id="v-console">
+      <h1>Console</h1>
+      <p class="sub">Live request straight through the relay (<code>/v1/chat/completions</code>) — the same
+        path your agents use. Streaming timings are measured client-side.</p>
+      <div class="grid g2" style="margin-bottom:14px">
+        <div class="card">
+          <label class="f">Model</label>
+          <select id="cModel"></select>
+          <label class="f" style="margin-top:12px">Account</label>
+          <select id="cAcct"><option value="">auto (round-robin pool)</option></select>
+          <div class="rowline" style="margin-top:12px;gap:14px">
+            <div><label class="f">Reasoning effort</label>
+              <select id="cEffort" style="width:120px">
+                <option>high</option><option selected>medium</option><option>low</option>
+              </select></div>
+            <label style="display:flex;align-items:center;gap:8px;margin-top:20px">
+              <span class="sw"><input type="checkbox" id="cStream" checked><i></i></span> stream
+            </label>
+          </div>
+          <label class="f" style="margin-top:12px">Prompt</label>
+          <textarea id="cPrompt" rows="3">Reply with exactly two short sentences.</textarea>
+          <div class="btnrow" style="margin-top:12px">
+            <button class="btn pri" id="cRun" onclick="runTest()">▶ Send</button>
+            <button class="btn danger" id="cStop" onclick="stopTest()" disabled>■ Abort</button>
+            <button class="btn" onclick="copy(curlSnippet(true))">copy curl</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="rowline"><h3>Response</h3>
+            <div id="cStats" class="pill"><span class="dot"></span> idle</div></div>
+          <div id="cTtfb" class="bar" style="display:none"><i style="width:0"></i></div>
+          <pre class="out" id="cOut" style="margin-top:10px;min-height:220px">nothing sent yet</pre>
+          <label class="f" style="margin-top:10px">relay / raw stream</label>
+          <pre class="out" id="cRaw" style="max-height:150px;font-size:11.5px;color:var(--dim)">—</pre>
+        </div>
+      </div>
+    </section>
+
+    <!-- ============================================ SETTINGS -->
+    <section id="v-settings">
+      <h1>Settings</h1>
+      <p class="sub">Server, key, routing timeouts and diagnostics.</p>
+      <div class="grid g2">
+        <div class="card">
+          <h3>Server</h3>
+          <div class="kv" style="margin-top:8px">
+            <b>state</b><div id="stState">—</div>
+            <b>uptime</b><div id="stUptime">—</div>
+            <b>port</b><div><input type="number" id="stPort" style="max-width:130px;display:inline-block">
+              <button class="btn sm" onclick="applyPort()">apply</button></div>
+            <b>lan url</b><div><code id="stLan">—</code></div>
+            <b>version</b><div id="stVer">—</div>
+          </div>
+          <div class="btnrow" style="margin-top:14px">
+            <button class="btn" onclick="doRestart()">restart server</button>
+            <button class="btn" onclick="regenKey()">regenerate key</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Routing</h3>
+          <p class="hint">These are what stop a stalled account from hanging your clients.</p>
+          <label class="f">Time to wait for upstream headers, then fail over — <span id="lblFtt"></span></label>
+          <input type="range" id="tFtt" min="5" max="120" step="5" oninput="lbl('tFtt','lblFtt','s')">
+          <label class="f" style="margin-top:12px">SSE heartbeat interval — <span id="lblHb"></span></label>
+          <input type="range" id="tHb" min="2" max="30" step="1" oninput="lbl('tHb','lblHb','s')">
+          <label class="f" style="margin-top:12px">Cooldown after a failure — <span id="lblCd"></span></label>
+          <input type="range" id="tCd" min="0" max="180" step="5" oninput="lbl('tCd','lblCd','s')">
+          <label class="f" style="margin-top:12px">Max accounts tried per request — <span id="lblAtt"></span></label>
+          <input type="range" id="tAtt" min="1" max="8" step="1" oninput="lbl('tAtt','lblAtt','')">
+          <label class="f" style="margin-top:12px">Total budget for one client request — <span id="lblAll"></span></label>
+          <input type="range" id="tAll" min="30" max="1800" step="30" oninput="lbl('tAll','lblAll','s')">
+          <div class="btnrow" style="margin-top:14px">
+            <button class="btn pri" onclick="saveTuning()">save routing</button>
+            <button class="btn" onclick="clearCooldowns()">clear all cooldowns</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>COSY signer</h3>
+          <p class="hint">Requests are signed by the Qoder wasm module running in a hidden WebView.</p>
+          <div class="kv"><b>state</b><div id="stSigner">—</div><b>error</b><div id="stSignerErr">—</div></div>
+          <div class="btnrow" style="margin-top:12px">
+            <button class="btn" onclick="selftest()">run self-test</button>
+          </div>
+          <pre class="out" id="stTest" style="margin-top:10px;display:none"></pre>
+        </div>
+
+        <div class="card">
+          <h3>Appearance</h3>
+          <p class="hint">The dashboard is also reachable from any browser on your LAN.</p>
+          <div class="btnrow">
+            <button class="btn sm" onclick="setTheme('midnight')">Midnight</button>
+            <button class="btn sm" onclick="setTheme('graphite')">Graphite</button>
+            <button class="btn sm" onclick="setTheme('warm')">Warm light</button>
+            <button class="btn sm" onclick="setTheme('auto')">Auto</button>
+          </div>
+          <h3 style="margin-top:16px">How to point a client at this</h3>
+          <pre class="out" style="margin-top:8px" id="stClient"></pre>
+          <button class="btn sm" style="margin-top:8px" onclick="copy(el('stClient').textContent)">copy</button>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- login modal -->
+<div class="mask" id="mLogin"><div class="modal">
+  <h3 style="margin:0 0 3px">Sign in with Qoder</h3>
+  <p class="hint">Device-flow login, same as the CLI. Approve in the browser, the token lands here.</p>
+  <div class="rowline" style="gap:8px;margin-bottom:10px">
+    <select id="lgRegion" style="max-width:190px">
+      <option value="global">global · qoder.com</option>
+      <option value="cn">cn · qoder.com.cn</option>
+    </select>
+    <input type="text" id="lgLabel" placeholder="label (optional)" style="flex:1">
+  </div>
+  <pre class="out" id="lgUrl" style="max-height:96px;font-size:11.5px">press start…</pre>
+  <div class="btnrow" style="margin-top:12px">
+    <button class="btn pri" id="lgGo" onclick="startDevice()">start login</button>
+    <button class="btn" onclick="copy(el('lgUrl').textContent)">copy url</button>
+    <button class="btn" onclick="openUrl(el('lgUrl').textContent)">open browser</button>
+    <button class="btn" onclick="closeMask('mLogin')">close</button>
+  </div>
+  <div id="lgState" class="pill" style="margin-top:12px"><span class="dot"></span> idle</div>
+</div></div>
+
+<!-- pat modal -->
+<div class="mask" id="mPat"><div class="modal">
+  <h3 style="margin:0 0 3px">Personal Access Token</h3>
+  <p class="hint">Created at qoder.com → Account → Integrations (<code>pt-…</code>).</p>
+  <input type="password" id="patVal" placeholder="pt-…" autocomplete="off">
+  <input type="text" id="patLabel" placeholder="label (optional)" style="margin-top:10px">
+  <div class="btnrow" style="margin-top:12px">
+    <button class="btn pri" onclick="addPat()">add account</button>
+    <button class="btn" onclick="closeMask('mPat')">cancel</button>
+  </div>
+  <div id="patState" class="pill" style="margin-top:12px"><span class="dot"></span> idle</div>
+</div></div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+const el = (id) => document.getElementById(id);
+const Native = window.Android || null;
+let KEY = localStorage.getItem("qr.key") || "";
+let DATA = { status: {}, usage: { accounts: [], recent: [] }, catalog: [], config: {} };
+let filter = "all", keyShown = false, loginTimer = null, pollTimer = null, aborter = null;
+
+/* ------------------------------------------------------------- utilities */
+const fmt = (n) => { n = Number(n || 0); return n >= 1e6 ? (n / 1e6).toFixed(2) + "M"
+  : n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n); };
+const ms = (v) => v == null || v < 0 ? "—" : (v >= 1000 ? (v / 1000).toFixed(v >= 10000 ? 0 : 1) + "s" : Math.round(v) + "ms");
+const hhmm = (t) => new Date(t).toLocaleTimeString([], { hour12: false });
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+
+function toast(m) { const t = el("toast"); t.textContent = m; t.classList.add("on");
+  clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove("on"), 2400); }
+function copy(t) {
+  if (Native && Native.copy) { Native.copy(t); toast("copied"); return; }
+  navigator.clipboard && navigator.clipboard.writeText(t).then(() => toast("copied"), () => toast(t));
+}
+function openUrl(u) { if (Native && Native.openUrl) Native.openUrl(u); else window.open(u, "_blank"); }
+function base() { return location.origin; }
+function lanBase() { const lan = DATA.config.lan || DATA.status.lan; return lan ? "http://" + lan + ":" + DATA.status.port : base(); }
+
+async function api(path, opts) {
+  opts = opts || {};
+  const headers = Object.assign({ "x-relay-key": KEY }, opts.headers || {});
+  if (opts.body && !opts.headers) headers["Content-Type"] = "application/json";
+  const r = await fetch(path, { method: opts.method || "GET", headers, body: opts.body || null });
+  const text = await r.text();
+  let json = null; try { json = JSON.parse(text); } catch (e) { }
+  if (!r.ok) { const m = (json && json.error && json.error.message) || text.slice(0, 140) || r.status;
+    throw new Error(m); }
+  return json === null ? text : json;
+}
+
+/* ---------------------------------------------------------------- themes */
+function setTheme(t) {
+  localStorage.setItem("qr.theme", t);
+  applyTheme(t);
+}
+function applyTheme(t) {
+  t = t || localStorage.getItem("qr.theme") || "midnight";
+  const eff = t === "auto" ? (matchMedia("(prefers-color-scheme: light)").matches ? "warm" : "midnight") : t;
+  document.documentElement.dataset.theme = eff;
+  const BGS = { midnight: "#0a0c10", graphite: "#0f0f10", warm: "#f6f5f2" };
+  if (Native && Native.setChrome) Native.setChrome(BGS[eff] || "#0a0c10", eff !== "warm");
+}
+matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => {
+  if (localStorage.getItem("qr.theme") === "auto") applyTheme("auto");
+});
+
+/* ------------------------------------------------------------------ nav */
+function go(v) {
+  document.querySelectorAll("main section").forEach(s => s.classList.toggle("on", s.id === "v-" + v));
+  document.querySelectorAll(".nav button[data-view]").forEach(b => b.classList.toggle("on", b.dataset.view === v));
+  renderAccounts();
+  renderModels();
+  renderUsage();
+  fillConsole();
+  location.hash = "#" + v;
+}
+document.querySelectorAll(".nav button[data-view]").forEach(b =>
+  b.addEventListener("click", () => go(b.dataset.view)));
+
+/* Delegated actions: keeps account ids / model keys out of inline handler strings. */
+document.addEventListener("click", (ev) => {
+  const t = ev.target.closest && ev.target.closest("[data-act]");
+  if (!t || t.tagName === "INPUT") return;
+  const d = t.dataset;
+  if (d.act === "model") toggleModel(d.id, d.key);
+  else if (d.act === "models") refreshModels(d.id);
+  else if (d.act === "uncool") uncool(d.id);
+  else if (d.act === "rename") renameAcct(d.id, d.label || "");
+  else if (d.act === "pin") pinAcct(d.id);
+  else if (d.act === "del") delAcct(d.id, d.label || d.id);
+});
+document.addEventListener("change", (ev) => {
+  const t = ev.target.closest && ev.target.closest("input[data-act]");
+  if (!t) return;
+  if (t.dataset.act === "enabled") patchAcct(t.dataset.id, { enabled: t.checked });
+  else if (t.dataset.act === "universal") patchAcct(t.dataset.id, { universal: t.checked });
+});
+
+/* --------------------------------------------------------------- render */
+async function refresh(loud) {
+  try {
+    const [status, usage, config, catalog] = await Promise.all([
+      api("/relay/status"), api("/relay/usage"), api("/relay/config"), api("/relay/catalog")
+    ]);
+    DATA.status = status; DATA.usage = usage; DATA.config = config; DATA.catalog = catalog.models || [];
+    renderAll();
+    if (loud) toast("refreshed");
+  } catch (e) {
+    const p = el("srvPill"); p.className = "pill err";
+    p.innerHTML = '<span class="dot"></span> unreachable: ' + esc(String(e.message).slice(0, 60));
+    if (loud) toast("relay unreachable — " + e.message);
+  }
+}
+
+function renderAll() {
+  const s = DATA.status, u = DATA.usage, c = DATA.config;
+  el("ver").textContent = "v" + (s.version || c.version || "0.2.0");
+  el("navAcc").textContent = s.accounts;
+  const fly = s.inFlight || 0;
+  const p = el("srvPill");
+  p.className = "pill " + (s.running ? (fly ? "live" : "ok") : "err");
+  p.innerHTML = '<span class="dot"></span> ' + (s.running ? (fly ? fly + " in flight" : "running") : "stopped")
+    + " ·:" + s.port;
+  el("btnSrv").textContent = s.running ? "stop" : "start";
+  el("foot").innerHTML = esc(s.signer || "—") + "<br>uptime " + esc(uptime(s.uptimeMs));
+
+  el("epBase").textContent = lanBase() + "/v1";
+  el("epHint").textContent = "loopback: " + base() + "/v1 — same page, any OpenAI SDK";
+  renderKey();
+  const reqs = (u.accounts || []).reduce((a, b) => a + (b.reqs || 0), 0);
+  const errs = (u.accounts || []).reduce((a, b) => a + (b.errs || 0), 0);
+  el("sReqs").textContent = fmt(reqs);
+  el("sReqsN").textContent = errs + " errors · " + (u.accounts || []).reduce((a, b) => a + (b.failovers || 0), 0) + " failovers";
+  el("sIn").textContent = fmt(u.total_in);
+  el("sOut").textContent = fmt(u.total_out);
+  el("sFly").textContent = fly;
+  el("sFlyN").textContent = fly ? "streaming now" : "idle";
+  renderPool();
+  renderLatency();
+  renderEvents("ovEvents", (u.recent || []).slice(0, 7), false);
+  renderSettings();
+  el("stClient").textContent =
+    "from openai import OpenAI\nclient = OpenAI(base_url=\"" + lanBase() + "/v1\",\n" +
+    "                api_key=\"" + KEY + "\")\n\nr = client.chat.completions.create(\n" +
+    "    model=\"qfmodel\",\n    messages=[{\"role\":\"user\",\"content\":\"ping\"}],\n    stream=True)";
+  renderAccounts();
+  renderModels();
+  renderUsage();
+  fillConsole();
+}
+
+function uptime(v) {
+  v = Math.floor((v || 0) / 1000);
+  const h = Math.floor(v / 3600), m = Math.floor((v % 3600) / 60);
+  return (h ? h + "h " : "") + m + "m";
+}
+
+function renderKey() {
+  el("epKey").textContent = keyShown ? KEY : KEY.slice(0, 11) + "•".repeat(Math.max(0, KEY.length - 11));
+}
+function toggleKey() { keyShown = !keyShown; renderKey();
+  document.querySelectorAll("[data-showkey]").forEach(b => b.textContent = keyShown ? "(hide)" : "(show)"); }
+
+function renderPool() {
+  const host = el("ovPool");
+  const accs = DATA.status.accounts ? DATA.usage.accounts : [];
+  if (!accs.length) { host.innerHTML = '<p class="hint" style="margin:0">no accounts yet — add one in Accounts.</p>'; return; }
+  const now = Date.now();
+  host.innerHTML = accs.map(a => {
+    const cool = a.cooldownUntil > now;
+    const st = cool ? "warn" : (a.status === "active" ? "ok" : (a.status === "unknown" ? "" : "err"));
+    const share = (a.inTok + a.outTok);
+    return '<div class="rowline" style="padding:8px 0;border-bottom:1px solid var(--line)">' +
+      '<div style="min-width:0"><b>' + esc(a.label) + '</b> ' +
+      '<span class="pill ' + st + '"><span class="dot"></span>' + (cool ? "cooling " + Math.ceil((a.cooldownUntil - now) / 1000) + "s" : esc(a.status)) + '</span>' +
+      '<div class="n" style="font-size:11.5px;color:var(--dim2)">' + esc(a.kind) + " · " + esc(a.region) +
+      " · " + a.reqs + " req · " + a.errs + " err</div></div>" +
+      '<div style="text-align:right;font-size:11.5px;color:var(--dim)">' + fmt(a.inTok) + " in<br>" + fmt(a.outTok) + " out</div>" +
+      "</div>";
+  }).join("");
+}
+
+function renderLatency() {
+  const ev = (DATA.usage.recent || []).slice(0, 14).reverse();
+  const host = el("ovLat");
+  if (!ev.length) { host.innerHTML = '<p class="hint" style="margin:0">no traffic yet.</p>'; return; }
+  const max = Math.max(...ev.map(e => Math.max(0, e.ttfb || e.ms || 0)), 1);
+  host.innerHTML = ev.map(e => {
+    const v = Math.max(0, e.ttfb || e.ms || 0);
+    const bad = e.state !== "ok";
+    return '<div style="display:flex;align-items:center;gap:8px;margin:5px 0">' +
+      '<span style="width:74px;font-size:11px;color:var(--dim2);overflow:hidden;white-space:nowrap">' + esc(e.account) + "</span>" +
+      '<div style="flex:1"><div class="bar"><i style="width:' + Math.min(100, v / max * 100) +
+      "%;background:" + (bad ? "var(--err)" : "linear-gradient(90deg,var(--accent),var(--accent2))") + '"></i></div></div>' +
+      '<span class="mono" style="width:60px;text-align:right;font-size:11px;color:' + (bad ? "var(--err)" : "var(--dim)") + '">' +
+      (e.ttfb >= 0 ? ms(e.ttfb) : ms(e.ms)) + "</span></div>";
+  }).join("");
+}
+
+function renderEvents(hostId, ev, full) {
+  const host = el(hostId);
+  if (!ev.length) { host.innerHTML = '<tr><td colspan="9" style="color:var(--dim2)">no events yet</td></tr>'; return; }
+  host.innerHTML = ev.map(e => {
+    const cls = e.state === "ok" ? "ok" : (e.state === "client_gone" || e.state === "short" ? "warn" : "err");
+    return "<tr><td class='mono' style='color:var(--dim2)'>" + hhmm(e.ts) + "</td><td>" + esc(e.account) +
+      "</td><td class='mono'>" + esc(e.model) + "</td><td><span class='pill " + cls + "'><span class='dot'></span>" +
+      esc(e.state) + "</span></td>" +
+      (full ? "<td>" + (e.status || "") + "</td>" : "") +
+      "<td class='mono'>" + (e.ttfb >= 0 ? ms(e.ttfb) : "—") + "</td><td class='mono'>" + ms(e.ms) + "</td>" +
+      "<td class='mono'>" + fmt(e.in) + "→" + fmt(e.out) + "</td>" +
+      (full ? "<td style='max-width:280px;color:var(--err);font-size:11.5px'>" + esc(e.err || "") + "</td>" : "") +
+      "</tr>";
+  }).join("");
+}
+
+function renderUsage() {
+  const u = DATA.usage, accs = u.accounts || [];
+  el("uIn").textContent = fmt(u.total_in);
+  el("uOut").textContent = fmt(u.total_out);
+  el("uErr").textContent = accs.reduce((a, b) => a + (b.errs || 0), 0);
+  el("uFov").textContent = accs.reduce((a, b) => a + (b.failovers || 0), 0) + " failovers";
+  const ttfbs = (u.recent || []).map(e => e.ttfb).filter(v => v >= 0).sort((a, b) => a - b);
+  el("uTtfb").textContent = ttfbs.length ? ms(ttfbs[Math.floor(ttfbs.length / 2)]) : "—";
+
+  const tot = accs.reduce((a, b) => a + b.inTok + b.outTok, 0) || 1;
+  el("uBars").innerHTML = accs.length ? accs.map(a => {
+    const v = a.inTok + a.outTok;
+    return '<div style="margin:9px 0"><div class="rowline" style="font-size:12px"><b>' + esc(a.label) +
+      "</b><span class='mono' style='color:var(--dim)'>" + fmt(v) + " · " + (v / tot * 100).toFixed(1) + "%</span></div>" +
+      '<div class="bar"><i style="width:' + (v / tot * 100) + '%"></i></div></div>';
+  }).join("") : '<p class="hint">no accounts.</p>';
+
+  const ev = (u.recent || []).filter(e => filter === "all" || e.state === filter).slice(0, 120);
+  renderEvents("logRows", ev, true);
+  ["all", "ok", "failover"].forEach(f => {
+    const b = el("f-" + f); if (!b) return;
+    b.className = "btn sm" + (f === filter ? " pri" : "");
+  });
+}
+function setFilter(f) { filter = f; renderUsage(); }
+function clearLog() { DATA.usage.recent = []; renderUsage(); toast("view cleared (keeps counting)"); }
+
+/* -------------------------------------------------------------- accounts */
+function renderAccounts() {
+  const host = el("acctList"), accs = DATA.usage.accounts || [];
+  if (!accs.length) {
+    host.innerHTML = '<div class="card" style="text-align:center;padding:34px"><h3>No accounts yet</h3>' +
+      '<p class="hint">Sign in through the browser (the relay never sees your password) or paste a Personal Access Token.</p></div>';
+    return;
+  }
+  const now = Date.now();
+  host.innerHTML = accs.map(a => {
+    const cool = a.cooldownUntil > now;
+    const cls = cool ? "cooling" : (a.status === "active" ? "active" : (a.status === "unknown" ? "" : "error"));
+    const exp = new Date(a.expiresAt).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    const keys = (a.discovered && a.discovered.length ? a.discovered : a.models) || [];
+    const chips = keys.map(k => '<span class="chip' + ((!a.models.length || a.models.includes(k)) ? " on" : "") +
+      '" data-act="model" data-id="' + esc(a.id) + '" data-key="' + esc(k) + '">' + esc(k) + "</span>").join("");
+    return '<div class="card acct s-' + (cls || "unknown") + '">' +
+      '<div class="rowline"><div style="min-width:0">' +
+        '<div class="rowline" style="gap:8px"><h3 style="margin:0">' + esc(a.label) + "</h3>" +
+        '<span class="pill ' + (a.enabled ? (cool ? "warn" : "ok") : "") + '"><span class="dot"></span>' +
+        (a.enabled ? (cool ? "cooling " + Math.ceil((a.cooldownUntil - now) / 1000) + "s" : esc(a.status)) : "disabled") +
+        "</span></div>" +
+        '<p class="hint" style="margin:3px 0 0">' + esc(a.kind) + " · " + esc(a.region) + " · expires " + exp +
+        " · " + (a.models.length ? a.models.length + " allow-listed" : "serves all") + "</p>" +
+      "</div>" +
+      '<label class="sw" title="enabled"><input type="checkbox" data-act="enabled" data-id="' + esc(a.id) + '"' +
+        (a.enabled ? " checked" : "") + "><i></i></label></div>" +
+      '<div class="grid g4" style="margin:12px 0">' +
+        tile("requests", a.reqs) + tile("in", fmt(a.inTok)) + tile("out", fmt(a.outTok)) +
+        tile("err / fov", a.errs + " / " + a.failovers) +
+      "</div>" +
+      (a.lastError ? '<p style="color:var(--err);font-size:12px;margin:0 0 10px">' + esc(a.lastError) + "</p>" : "") +
+      '<div class="chips">' + (chips || '<span class="chip lock">no models discovered</span>') + "</div>" +
+      '<div class="btnrow" style="margin-top:13px">' +
+        '<button class="btn sm" data-act="models" data-id="' + esc(a.id) + '">⟳ models</button>' +
+        (cool ? '<button class="btn sm" data-act="uncool" data-id="' + esc(a.id) + '">clear cooldown</button>' : "") +
+        '<button class="btn sm" data-act="rename" data-id="' + esc(a.id) + '" data-label="' + esc(a.label) + '">rename</button>' +
+        '<button class="btn sm" data-act="pin" data-id="' + esc(a.id) + '">pin to console</button>' +
+        '<button class="btn sm danger" data-act="del" data-id="' + esc(a.id) + '" data-label="' + esc(a.label) + '">remove</button>' +
+      "</div></div>";
+  }).join("");
+}
+function tile(k, v) {
+  return '<div class="stat" style="padding:9px 11px"><div class="k">' + k + '</div><div class="v" style="font-size:17px">' + v + "</div></div>";
+}
+async function patchAcct(id, body) {
+  try { await api("/relay/accounts/" + id, { method: "PUT", body: JSON.stringify(body) }); await refresh(); }
+  catch (e) { toast("failed: " + e.message); }
+}
+async function toggleModel(id, key) {
+  const a = (DATA.usage.accounts || []).find(x => x.id === id); if (!a) return;
+  const base = a.discovered && a.discovered.length ? a.discovered : a.models;
+  let list = a.models.length ? a.models.slice() : base.slice();
+  list = list.includes(key) ? list.filter(k => k !== key) : list.concat([key]);
+  if (list.length === base.length) list = [];           // all checked = allow-list off
+  await patchAcct(id, { models: list });
+}
+async function uncool(id) { await patchAcct(id, { clearCooldown: true }); toast("back in rotation"); }
+function renameAcct(id, old) {
+  const v = prompt("Label for this account", old); if (!v) return;
+  patchAcct(id, { label: v });
+}
+function delAcct(id, label) {
+  if (!confirm("Remove " + label + "? Its token and counters are deleted.")) return;
+  api("/relay/accounts/" + id, { method: "DELETE" }).then(refresh).catch(e => toast(e.message));
+}
+function pinAcct(id) { go("console"); el("cAcct").value = id; }
+async function refreshModels(id) {
+  toast("refreshing…");
+  try { const r = await api("/relay/models/refresh", { method: "POST", body: JSON.stringify({ account: id }) });
+    toast(r.models.length + " models · " + r.ms + "ms"); await refresh(); }
+  catch (e) { toast("failed: " + e.message); }
+}
+async function refreshModelsAll() {
+  toast("refreshing all accounts…");
+  try { const r = await api("/relay/models/refresh");
+    (r.results || []).forEach(x => toast(x.account + ": " + (x.ok ? x.models.length + " models" : x.error)));
+    await refresh(); } catch (e) { toast("failed: " + e.message); }
+}
+function clearCooldowns() { api("/relay/config", { method: "POST", body: JSON.stringify({ clearCooldowns: true }) })
+  .then(() => { refresh(); toast("cooldowns cleared"); }).catch(e => toast(e.message)); }
+
+/* ----------------------------------------------------------------- login */
+function openLogin() { el("mLogin").classList.add("on"); }
+function closeMask(id) { el(id).classList.remove("on"); clearInterval(loginTimer); }
+function openPat() { el("mPat").classList.add("on"); setTimeout(() => el("patVal").focus(), 60); }
+async function startDevice() {
+  el("lgGo").disabled = true;
+  const st = el("lgState"); st.className = "pill"; st.innerHTML = '<span class="dot live"></span> starting…';
+  try {
+    const r = await api("/relay/device-start", { method: "POST", body: JSON.stringify({
+      region: el("lgRegion").value, label: el("lgLabel").value || undefined }) });
+    el("lgUrl").textContent = r.url;
+    st.innerHTML = '<span class="dot warn"></span> waiting for approval…';
+    let id = null;
+    clearInterval(loginTimer);
+    loginTimer = setInterval(async () => {
+      try {
+        const p = await api("/relay/device-poll?login_id=" + r.login_id);
+        if (p.state === "pending") return;
+        if (p.state.startsWith("ok:")) {
+          clearInterval(loginTimer); el("lgGo").disabled = false;
+          st.className = "pill ok"; st.innerHTML = '<span class="dot"></span> signed in';
+          closeMask("mLogin"); toast("account added"); await refresh(true);
+        } else {
+          clearInterval(loginTimer); el("lgGo").disabled = false;
+          st.className = "pill err"; st.innerHTML = '<span class="dot"></span> ' + esc(p.state);
+        }
+      } catch (e) { }
+    }, 2000);
+    openUrl(r.url);
+  } catch (e) {
+    st.className = "pill err"; st.innerHTML = '<span class="dot"></span> ' + esc(e.message);
+    el("lgGo").disabled = false;
+  }
+}
+async function addPat() {
+  const pat = el("patVal").value.trim();
+  const st = el("patState");
+  if (!pat.startsWith("pt-")) { toast("PAT must start with pt-"); return; }
+  st.className = "pill"; st.innerHTML = '<span class="dot live"></span> exchanging…';
+  try {
+    await api("/relay/accounts", { method: "POST", body: JSON.stringify({ pat, label: el("patLabel").value || undefined }) });
+    st.className = "pill ok"; st.innerHTML = '<span class="dot"></span> added';
+    closeMask("mPat"); el("patVal").value = ""; await refresh(true);
+  } catch (e) {
+    st.className = "pill err"; st.innerHTML = '<span class="dot"></span> ' + esc(e.message.slice(0, 90));
+  }
+}
+
+/* ---------------------------------------------------------------- models */
+function renderModels() {
+  const rows = (DATA.catalog || []).map(m =>
+    "<tr><td class='mono'><b>" + esc(m.key) + "</b></td><td>" + esc(m.display_name) + "</td>" +
+    "<td>" + (m.is_reasoning ? "yes" : "no") + "</td>" +
+    "<td style='color:var(--dim)'>" + (m.served_by && m.served_by.length ? esc(m.served_by.join(", ")) : "any") + "</td>" +
+    "<td class='mono' style='color:var(--dim2)'>qoder-" + esc(m.key) + (m.key === "qfmodel" ? " · dfmodel sibling" : "") + "</td></tr>");
+  el("modelRows").innerHTML = rows.join("") || "<tr><td colspan='5' style='color:var(--dim2)'>nothing yet</td></tr>";
+
+  el("modelPerms").innerHTML = (DATA.usage.accounts || []).map(a => {
+    const keys = (a.discovered && a.discovered.length ? a.discovered : a.models) || [];
+    return '<div class="card"><div class="rowline"><h3 style="margin:0">' + esc(a.label) + "</h3>" +
+      '<label class="sw" title="serve any model"><input type="checkbox" data-act="universal" data-id="' + esc(a.id) + '"' +
+      (a.universal ? " checked" : "") + '><i></i></label></div>' +
+      '<p class="hint">' + (a.models.length ? a.models.length + " allow-listed · " + esc(a.models.join(", "))
+        : "serving every model in the pool") + "</p>" +
+      '<div class="chips">' + keys.map(k => '<span class="chip' + ((!a.models.length || a.models.includes(k)) ? " on" : "") +
+        '" data-act="model" data-id="' + esc(a.id) + '" data-key="' + esc(k) + '">' + esc(k) + "</span>").join("") + "</div></div>";
+  }).join("");
+}
+
+/* --------------------------------------------------------------- console */
+function fillConsole() {
+  const models = (DATA.catalog || []).map(m => m.key);
+  const sel = el("cModel"), acct = el("cAcct");
+  if (sel.options.length !== models.length || sel.dataset.stale === "1") {
+    const keep = sel.value;
+    sel.innerHTML = models.map(k => '<option value="' + esc(k) + '">' + esc(k) + " — " + esc(mDisplayName(k)) + "</option>").join("");
+    if (keep && models.includes(keep)) sel.value = keep; else if (models.includes("qfmodel")) sel.value = "qfmodel";
+    sel.dataset.stale = "0";
+  }
+  const keepAcct = acct.value;
+  const list = (DATA.usage.accounts || []).filter(a => a.enabled);
+  const sig = list.map(a => a.id).join(",");
+  if (acct.dataset.sig !== sig) {
+    acct.innerHTML = '<option value="">auto (round-robin pool)</option>' +
+      list.map(a => '<option value="' + esc(a.id) + '">' + esc(a.label) + "</option>").join("");
+    acct.dataset.sig = sig;
+  }
+  if (keepAcct) acct.value = keepAcct;
+}
+function mDisplayName(k) {
+  const m = (DATA.catalog || []).find(x => x.key === k);
+  return m ? m.display_name : k;
+}
+function stopTest() { if (aborter) aborter.abort(); }
+async function runTest() {
+  const model = el("cModel").value || "qfmodel";
+  const acct = el("cAcct").value;
+  const stream = el("cStream").checked;
+  const body = { model, stream, messages: [{ role: "user", content: el("cPrompt").value || "ping" }],
+                 reasoning_effort: el("cEffort").value };
+  if (acct) body.relay_account = acct;
+  el("cOut").textContent = ""; el("cRaw").textContent = "";
+  el("cRun").disabled = true; el("cStop").disabled = false;
+  const st = el("cStats"); st.className = "pill live"; st.innerHTML = '<span class="dot"></span> waiting for headers…';
+  aborter = new AbortController();
+  const t0 = performance.now(); let ttfb = -1, bytes = 0, first = true;
+  try {
+    const r = await fetch("/v1/chat/completions", { method: "POST", signal: aborter.signal,
+      headers: { "x-relay-key": KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (!r.ok) { const t = await r.text(); throw new Error("HTTP " + r.status + " " + t.slice(0, 200)); }
+    const raw = [];
+    const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      if (ttfb < 0) ttfb = performance.now() - t0;
+      bytes += value.length;
+      buf += dec.decode(value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line) continue;
+        if (line.startsWith(":")) { raw.push(line); continue; }
+        if (!line.startsWith("data:")) continue;
+        const data = line.slice(5).trim();
+        if (data === "[DONE]") { raw.push("data: [DONE]"); continue; }
+        try {
+          const j = JSON.parse(data); raw.push("data: " + JSON.stringify(j).slice(0, 140));
+          const d = j.choices && j.choices[0] && j.choices[0].delta;
+          if (d && d.reasoning_content) { if (first) { el("cOut").textContent = ""; first = false; }
+            el("cOut").textContent += d.reasoning_content; }
+          if (d && d.content) { if (first) { el("cOut").textContent = ""; first = false; }
+            el("cOut").textContent += d.content; }
+          if (j.usage) raw.push("usage: " + JSON.stringify(j.usage));
+        } catch (e) { raw.push("raw: " + data.slice(0, 140)); }
+      }
+      el("cRaw").textContent = raw.slice(-40).join("\n");
+      el("cOut").scrollTop = el("cOut").scrollHeight;
+    }
+    const total = performance.now() - t0;
+    st.className = "pill ok";
+    st.innerHTML = '<span class="dot"></span> ttfb ' + ms(ttfb) + " · total " + ms(total) + " · " + fmt(bytes) + " B";
+  } catch (e) {
+    st.className = "pill err";
+    st.innerHTML = '<span class="dot"></span> ' + esc(String(e.message).slice(0, 70));
+    if (el("cOut").textContent === "") el("cOut").textContent = String(e.message);
+  } finally {
+    el("cRun").disabled = false; el("cStop").disabled = true; aborter = null;
+    refresh();
+  }
+}
+
+/* -------------------------------------------------------------- settings */
+function renderSettings() {
+  const c = DATA.config, s = DATA.status;
+  el("stState").textContent = s.running ? "running on :" + s.port : "stopped " + (c.serverError || "");
+  el("stUptime").textContent = uptime(s.uptimeMs);
+  el("stLan").textContent = s.lan ? s.lan + ":" + s.port : "no LAN address";
+  el("stVer").textContent = s.version || c.version;
+  if (document.activeElement !== el("stPort")) el("stPort").value = c.port || s.port;
+  el("stSigner").textContent = c.signerState || s.signer || "—";
+  el("stSignerErr").textContent = c.signerError || "none";
+  el("tFtt").value = Math.round((c.firstTokenMs || 45000) / 1000); lbl("tFtt", "lblFtt", "s");
+  el("tHb").value = Math.round((c.heartbeatMs || 8000) / 1000); lbl("tHb", "lblHb", "s");
+  el("tCd").value = Math.round((c.cooldownMs || 20000) / 1000); lbl("tCd", "lblCd", "s");
+  el("tAtt").value = c.maxAttempts || 4; lbl("tAtt", "lblAtt", "");
+  el("tAll").value = Math.round((c.overallMs || 600000) / 1000); lbl("tAll", "lblAll", "s");
+}
+function lbl(inp, out, unit) { el(out).textContent = el(inp).value + unit; }
+async function applyPort() {
+  const p = parseInt(el("stPort").value, 10);
+  if (!p) return;
+  toast("port → " + p + ", restarting…");
+  try { await api("/relay/config", { method: "POST", body: JSON.stringify({ port: p }) }); } catch (e) { }
+  setTimeout(() => { location.href = "http://" + (location.hostname || "127.0.0.1") + ":" + p + "/ui" +
+    (KEY ? "?key=" + encodeURIComponent(KEY) : ""); }, 1600);
+}
+async function saveTuning() {
+  const body = {
+    firstTokenMs: el("tFtt").value * 1000, heartbeatMs: el("tHb").value * 1000,
+    cooldownMs: el("tCd").value * 1000, maxAttempts: +el("tAtt").value,
+    overallMs: el("tAll").value * 1000
+  };
+  try { await api("/relay/config", { method: "POST", body: JSON.stringify(body) }); toast("routing saved"); refresh(); }
+  catch (e) { toast("failed: " + e.message); }
+}
+async function toggleServer() {
+  const want = !DATA.status.running;
+  try { await api("/relay/config", { method: "POST", body: JSON.stringify({ running: want }) });
+    toast(want ? "starting…" : "stopping…"); setTimeout(refresh, 900); }
+  catch (e) { toast("failed: " + e.message); }
+}
+function doRestart() { api("/relay/config", { method: "POST", body: JSON.stringify({ running: false }) })
+  .then(() => api("/relay/config", { method: "POST", body: JSON.stringify({ running: true }) }))
+  .then(() => { toast("restarting"); setTimeout(refresh, 1500); }).catch(e => toast(e.message)); }
+async function regenKey() {
+  if (!confirm("Regenerate the relay key? Every client must be reconfigured.")) return;
+  try { const r = await api("/relay/config", { method: "POST", body: JSON.stringify({ key_regen: true }) });
+    if (Native && Native.relayKey) KEY = Native.relayKey(); else { KEY = r.key || ""; localStorage.setItem("qr.key", KEY); }
+    toast("new key: " + KEY.slice(0, 14) + "…"); refresh(); } catch (e) { toast("failed: " + e.message); }
+}
+async function selftest() {
+  const out = el("stTest"); out.style.display = "block"; out.textContent = "running…";
+  try {
+    const r = await api("/relay/selftest", { method: "POST", body: JSON.stringify({}) });
+    out.textContent = "account   " + r.account + "\n" +
+      "token     " + j(r.token) + "\ncosy      " + j(r.cosy) + "\nmodels    " + j(r.models);
+  } catch (e) { out.textContent = "failed: " + e.message; }
+}
+function j(o) { return (o.ok ? "ok  " : "FAIL ") + (o.ms + "ms") + (o.error ? " · " + o.error : "") +
+  (o.count ? " · " + o.count + " models" : "") + (o.key_chars ? " · key " + o.key_chars : ""); }
+
+function curlSnippet(useConsole) {
+  const model = useConsole ? (el("cModel").value || "qfmodel") : "qfmodel";
+  const prompt = useConsole ? el("cPrompt").value.replace(/'/g, "'\\''") : "ping";
+  return "curl " + lanBase() + "/v1/chat/completions \\\n  -H \"Authorization: Bearer " + KEY + "\" \\\n" +
+    '  -H "Content-Type: application/json" \\\n  -d \'{"model":"' + model +
+    '","stream":true,"messages":[{"role":"user","content":\'' + prompt.replace(/"/g, "") + "'}]}\'";
+}
+
+/* ------------------------------------------------------------------ boot */
+async function boot() {
+  applyTheme();
+  let got = false;
+  if (Native && Native.relayKey) { KEY = Native.relayKey(); got = !!KEY; }
+  const q = new URLSearchParams(location.search).get("key");
+  if (q) { KEY = q; localStorage.setItem("qr.key", KEY); history.replaceState(null, "", "ui"); got = true; }
+  if (!got) {
+    try { const b = await (await fetch("/relay/boot")).json();
+      if (b.loopback && b.key) { KEY = b.key; localStorage.setItem("qr.key", KEY); got = true; } } catch (e) { }
+  }
+  if (!got && !KEY) { el("gate").style.display = "grid"; el("app").style.display = "none";
+    el("gateKey").focus(); return; }
+  el("gate").style.display = "none"; el("app").style.display = "flex";
+  const h = (location.hash || "").slice(1);
+  await refresh();
+  if (["overview", "accounts", "models", "usage", "console", "settings"].includes(h)) go(h);
+  el("cModel").dataset.stale = "1";
+  startPolling();
+}
+function gateSubmit() {
+  KEY = el("gateKey").value.trim(); if (!KEY) return;
+  localStorage.setItem("qr.key", KEY); boot();
+}
+function startPolling() {
+  clearInterval(pollTimer);
+  pollTimer = setInterval(() => { if (!document.hidden && !aborter) refresh(); }, 3500);
+}
+window.__onResume = () => refresh();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+el("gateKey").addEventListener("keydown", e => { if (e.key === "Enter") gateSubmit(); });
+boot();
+</script>
+</body>
+</html>

@@ -31,6 +31,17 @@ class CosySigner(private val app: RelayApp) {
         }
     }
 
+    /**
+     * Bring the wasm WebView up at process start. Signing happens on the request path, and the very
+     * first request after boot used to pay the whole WebView + wasm instantiation cost while the
+     * client sat waiting for response headers.
+     */
+    fun prewarm() {
+        onMain { try { ensureWeb() } catch (e: Exception) { lastError = "prewarm: ${e.message}" } }
+    }
+
+    fun ready(timeoutMs: Long = 25_000): Boolean = waitReady(timeoutMs)
+
     @SuppressLint("SetJavaScriptEnabled")
     private fun ensureWeb() {
         if (web != null) return

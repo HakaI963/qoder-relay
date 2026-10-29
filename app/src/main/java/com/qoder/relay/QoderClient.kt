@@ -20,13 +20,33 @@ object QoderClient {
 
     private val jsonT = "application/json; charset=utf-8".toMediaType()
 
+    /** Serialises COSY signing: the wasm context holds one account at a time. */
+    val signLock = Any()
+
+    /** Auth/token/model endpoints: short, bounded, safe to retry on another account. */
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
-            .connectTimeout(20, TimeUnit.SECONDS)
-            .readTimeout(300, TimeUnit.SECONDS)
-            .writeTimeout(60, TimeUnit.SECONDS)
-            .callTimeout(360, TimeUnit.SECONDS)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(45, TimeUnit.SECONDS)
+            .writeTimeout(45, TimeUnit.SECONDS)
+            .callTimeout(60, TimeUnit.SECONDS)
             .retryOnConnectionFailure(true)
+            .build()
+    }
+
+    /**
+     * Inference client. There is deliberately **no callTimeout**: a long answer must not be killed
+     * mid-stream. Instead the caller arms a per-call *header* timeout (see [openChat]) so a stalled
+     * account fails over in seconds, while [readTimeout] only guards the gap between SSE chunks.
+     */
+    val streamClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(150, TimeUnit.SECONDS)
+            .writeTimeout(60, TimeUnit.SECONDS)
+            .callTimeout(0, TimeUnit.MILLISECONDS)
+            .retryOnConnectionFailure(true)
+            .connectionPool(okhttp3.ConnectionPool(8, 4, TimeUnit.MINUTES))
             .build()
     }
 
@@ -134,7 +154,7 @@ object QoderClient {
     fun ensureCosyFields(a: Account, signer: CosySigner) {
         if (!a.needsFields && a.encInfo.isNotEmpty() && a.cosyKey.isNotEmpty()) return
         if (a.uid.isEmpty()) a.uid = fetchUid(a.token)
-        val fields = signer.genFields(a.token, a.refreshToken, a.uid, a.machineId)
+        val fields = synchronized(signLock) { signer.genFields(a.token, a.refreshToken, a.uid, a.machineId) }
         a.encInfo = fields.optString("encrypt_user_info")
         a.cosyKey = fields.optString("key")
         a.needsFields = false
@@ -143,16 +163,13 @@ object QoderClient {
     /** Model catalog entry: key -> (displayName, isReasoning). */
     fun listModels(a: Account, signer: CosySigner): List<JSONObject> {
         ensureCosyFields(a, signer)
-        signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
-        val signed = signer.signRequest(API_BASE, "/algo/api/v2/model/list", "GET")
+        val signed = synchronized(signLock) {
+            signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
+            signer.signRequest(API_BASE, "/algo/api/v2/model/list", "GET")
+        }
         val req = Request.Builder()
             .url(signed.getString("url"))
-            .apply {
-                val h = signed.getJSONObject("headers")
-                h.keys().forEach { k ->
-                    if (!k.equals("host", true) && !k.equals("content-length", true)) header(k, h.getString(k))
-                }
-            }
+            .apply { applySignedHeaders(signed) }
             .get().build()
         client.newCall(req).execute().use { r ->
             if (!r.isSuccessful) throw RuntimeException("models ${r.code}: ${r.body?.string()?.take(160)}")
@@ -162,21 +179,52 @@ object QoderClient {
         }
     }
 
-    /** Prepare the COSY-signed inference request. */
-    fun openChat(a: Account, signer: CosySigner, wireBody: JSONObject, modelKey: String): okhttp3.Response {
+    private fun Request.Builder.applySignedHeaders(signed: JSONObject): Request.Builder {
+        val h = signed.getJSONObject("headers")
+        h.keys().forEach { k ->
+            if (!k.equals("host", true) && !k.equals("content-length", true)) header(k, h.getString(k))
+        }
+        header("Accept", "text/event-stream")
+        return this
+    }
+
+    /**
+     * Prepare and fire the COSY-signed inference request.
+     *
+     * [headerTimeoutMs] bounds only the wait for upstream response headers (OkHttp's per-call
+     * timeout, cleared the moment headers land) — that is what lets the relay fail over from a
+     * stalled account in seconds instead of sitting on OkHttp's 360 s call timeout, which is the
+     * root cause of clients reporting "Timed out waiting for response headers".
+     *
+     * @throws java.io.InterruptedIOException when the account is too slow to start answering.
+     */
+    fun openChat(
+        a: Account,
+        signer: CosySigner,
+        wireBody: JSONObject,
+        modelKey: String,
+        headerTimeoutMs: Long = 45_000
+    ): okhttp3.Response {
         ensureCosyFields(a, signer)
-        signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
-        val signed = signer.signInfer(API_BASE, wireBody.toString(), modelKey, "system")
+        val payload = wireBody.toString()
+        val signed = synchronized(signLock) {
+            signer.reset(a.machineId, a.uid, a.encInfo, a.cosyKey)
+            signer.signInfer(API_BASE, payload, modelKey, "system")
+        }
         val req = Request.Builder()
             .url(signed.getString("url"))
-            .apply {
-                val h = signed.getJSONObject("headers")
-                h.keys().forEach { k ->
-                    if (!k.equals("host", true) && !k.equals("content-length", true)) header(k, h.getString(k))
-                }
-            }
+            .apply { applySignedHeaders(signed) }
             .post(signed.getString("body").toRequestBody(jsonT))
             .build()
-        return client.newCall(req).execute()
+        val call = streamClient.newCall(req)
+        if (headerTimeoutMs > 0) call.timeout().timeout(headerTimeoutMs, TimeUnit.MILLISECONDS)
+        val resp = try {
+            call.execute()
+        } catch (e: Exception) {
+            runCatching { call.cancel() }
+            throw e
+        }
+        if (headerTimeoutMs > 0) call.timeout().clearTimeout()
+        return resp
     }
 }

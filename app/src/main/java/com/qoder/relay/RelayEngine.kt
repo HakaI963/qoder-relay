@@ -7,10 +7,22 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicInteger
 
 class RelayEngine(val repo: AccountRepo) {
-    private val rr = AtomicInteger(0)
+    private val cursor = AtomicInteger(0)
     val recent = ArrayDeque<JSONObject>()
     /** key -> display name + reasoning flag, filled from signed model listings. */
     val modelInfo = ConcurrentHashMap<String, Pair<String, Boolean>>()
+
+    // --- tuning, all live-editable from the dashboard ---
+    /** How long a single account may take to return upstream response headers before failover. */
+    @Volatile var firstTokenMs: Long = 45_000
+    /** How long to park a failing account out of rotation. */
+    @Volatile var cooldownMs: Long = 20_000
+    /** Total budget for one client request across every attempt. */
+    @Volatile var overallMs: Long = 600_000
+    /** SSE comment interval while upstream is quiet. */
+    @Volatile var heartbeatMs: Long = 8_000
+    /** Max accounts tried per request. */
+    @Volatile var maxAttempts: Int = 4
 
     fun usableFor(model: String?): List<Account> {
         val now = System.currentTimeMillis()
@@ -23,16 +35,35 @@ class RelayEngine(val repo: AccountRepo) {
     fun candidates(requestedModel: String?, pinnedAccountId: String?): Pair<List<Account>, String> {
         if (pinnedAccountId != null) {
             val a = repo.find(pinnedAccountId)
-            if (a != null) return listOf(a) to resolveModel(a, requestedModel ?: "qfmodel")
+            if (a != null) {
+                val m = resolveModel(a, requestedModel ?: "qfmodel")
+                return (if (a.cooldownUntil < System.currentTimeMillis()) listOf(a) else emptyList()) to m
+            }
         }
-        val list = usableFor(null)
-        val ordered = list.sortedBy { rr.getAndIncrement() % 1000000 }
-        var resolved = requestedModel?.let { m ->
-            ordered.firstOrNull { it.serves(m, this) }?.let { resolveModel(it, m) } ?: m
-        } ?: "qfmodel"
-        if (resolved !in catalog()) resolved = "qfmodel"
-        val cands = ordered.filter { it.serves(resolved, this) }.ifEmpty { ordered }
-        return cands to resolved
+        val pool = usableFor(null)
+        if (pool.isEmpty()) return emptyList<Account>() to (requestedModel ?: "qfmodel")
+        // true round-robin: rotate the start offset so a pool of N never starves
+        val start = Math.floorMod(cursor.getAndIncrement(), pool.size)
+        val rotated = ArrayList<Account>(pool.size)
+        for (i in pool.indices) rotated.add(pool[(start + i) % pool.size])
+
+        var resolved = requestedModel?.takeIf { it.isNotEmpty() }
+            ?: rotated.firstOrNull()?.let { resolveModel(it, "qfmodel") }
+            ?: "qfmodel"
+        resolved = resolveModel(rotated.first(), resolved)
+        if (resolved !in catalog()) resolved = "auto"
+
+        val cands = rotated.filter { it.serves(resolved, this) }.ifEmpty { rotated }
+        return cands.take(maxAttempts.coerceAtLeast(1)) to resolved
+    }
+
+    /** Marks an account out of rotation and records why. */
+    fun penalize(a: Account, err: String, code: Int) {
+        a.errs++
+        a.status = if (code == 401 || code == 403) "auth_error" else "error"
+        a.lastError = err.take(200)
+        a.cooldownUntil = System.currentTimeMillis() + cooldownMs
+        a.needsFields = a.needsFields || code == 401 || code == 403
     }
 
     private fun resolveModel(account: Account, model: String): String {
@@ -46,10 +77,24 @@ class RelayEngine(val repo: AccountRepo) {
     }
 
     fun catalog(): Set<String> {
-        val s = HashSet(listOf("qfmodel", "dfmodel"))
+        val s = HashSet(listOf("qfmodel", "dfmodel", "auto", "fast", "efficient", "ultimate"))
         repo.accounts.forEach { s.addAll(it.discovered); s.addAll(it.models) }
         s.addAll(modelInfo.keys)
         return s
+    }
+
+    /** Dashboard-facing catalog: every known model, who serves it, and its display name. */
+    fun modelCatalog(): List<JSONObject> {
+        val keys = catalog().toList().sorted()
+        return keys.map { k ->
+            val info = modelInfo[k]
+            val serving = repo.accounts.filter { it.enabled && it.serves(k, this) }.map { it.label }
+            JSONObject()
+                .put("key", k)
+                .put("display_name", info?.first ?: k)
+                .put("is_reasoning", info?.second ?: true)
+                .put("served_by", JSONArray(serving))
+        }
     }
 
     fun ensureToken(a: Account): Boolean {

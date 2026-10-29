@@ -797,6 +797,7 @@ class RelayServer(
 
     private fun statusJson() = JSONObject()
         .put("running", app.isRunning())
+        .put("now", System.currentTimeMillis())
         .put("port", app.port)
         .put("version", RelayApp.VERSION)
         .put("uptimeMs", System.currentTimeMillis() - app.startedAt)

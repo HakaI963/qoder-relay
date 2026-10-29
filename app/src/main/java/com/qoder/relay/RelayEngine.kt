@@ -141,9 +141,17 @@ class RelayEngine(val repo: AccountRepo) {
 
     fun activeList(): List<JSONObject> {
         val cutoff = System.currentTimeMillis() - 20 * 60_000
+        val now = System.currentTimeMillis()
         active.entries.filter { it.value.optLong("start") < cutoff }
             .forEach { active.remove(it.key) }
-        return active.values.sortedByDescending { it.optLong("start") }.map { JSONObject(it.toString()) }
+        return active.values.sortedByDescending { it.optLong("start") }.map { rec ->
+            // ages come from THIS clock: the dashboard runs in another userspace whose clock
+            // can differ by hours, so it must never subtract its own Date.now() from our start.
+            val ttfb = rec.optLong("ttfb", -1L)
+            JSONObject(rec.toString())
+                .put("age", now - rec.optLong("start"))
+                .put("runMs", if (ttfb >= 0) now - rec.optLong("start") - ttfb else 0)
+        }
     }
 
     private fun modelConfig(key: String): JSONObject {

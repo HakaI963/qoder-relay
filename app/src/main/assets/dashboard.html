@@ -664,6 +664,10 @@ let KEY = localStorage.getItem("qr.key") || "";
 let DATA = { status:{}, usage:{ accounts:[], recent:[], active:[] }, catalog:[], config:{} };
 let filter = "all", keyShown = false, loginTimer = null, pollTimer = null, aborter = null;
 let openAcc = localStorage.getItem("qr.openAcc") || "";
+/* Android's clock and the WebView's clock are not the same clock. Every duration the UI
+   derives from a server timestamp goes through SKEW, measured fresh on each poll. */
+let SKEW = 0;
+const nowMs = () => Date.now() + SKEW;
 
 /* -------------------------------------------------------------- primitives */
 const fmt = (n) => { n = Number(n || 0);
@@ -671,7 +675,7 @@ const fmt = (n) => { n = Number(n || 0);
     : n >= 1e3 ? (n/1e3).toFixed(1)+"k" : String(Math.round(n)); };
 const dur = (v) => v == null || v < 0 ? "—" : v < 1000 ? Math.round(v)+"ms"
   : v < 60000 ? (v/1000).toFixed(v < 10000 ? 1 : 0)+"s" : (v/60000).toFixed(1)+"m";
-const clock = (t) => new Date(t).toLocaleTimeString([], { hour12:false });
+const clock = (t) => new Date(t + SKEW).toLocaleTimeString([], { hour12:false });
 const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g,
   (c) => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
 const pct = (a, b) => b > 0 ? Math.round(a / b * 100) : 0;
@@ -738,10 +742,10 @@ function tape(ev, scale){
     '<span class="cap">' + (ev.state === "failover" ? "no answer" : dur(wait) + " ▸ " + dur(run)) + "</span></span>";
 }
 function liveTape(a, scale){
-  const total = Math.max(1, Date.now() - a.start);
+  const total = Math.max(1, a.age != null ? a.age : nowMs() - a.start);
   const waiting = a.state !== "streaming";
   const wait = waiting ? total : a.ttfb;
-  const run = waiting ? 0 : Math.max(0, total - a.ttfb);
+  const run = waiting ? 0 : Math.max(0, a.runMs != null ? a.runMs : total - a.ttfb);
   return '<span class="tape" role="img" aria-label="request ' + esc(a.state) + ', ' + dur(total) + '">' +
     tapeBars(wait, total, scale, false, true) +
     '<span class="cap">' + (waiting ? "waiting " + dur(total) : dur(wait) + " ▸ " + dur(run)) +
@@ -800,6 +804,7 @@ async function refresh(loud){
     const [status, usage, config, catalog] = await Promise.all([
       api("/relay/status"), api("/relay/usage"), api("/relay/config"), api("/relay/catalog")]);
     DATA.status = status; DATA.usage = usage; DATA.config = config; DATA.catalog = catalog.models || [];
+    if (status.now) SKEW = status.now - Date.now();
     render();
     if (loud) toast("refreshed");
   } catch (e) {
@@ -822,7 +827,7 @@ function setTxt(id, v){ const n = el(id); if (n) n.textContent = v; }
 function setHtml(id, v){ const n = el(id); if (n) n.innerHTML = v; }
 function renderShell(){
   const st = DATA.status, u = DATA.usage, act = u.active || [];
-  setTxt("ver", "v" + (st.version || "0.2.4"));
+  setTxt("ver", "v" + (st.version || "0.2.5"));
   setTxt("navAcc", st.accounts || 0);
   setTxt("navLive", act.length);
   setTxt("fState", st.running ? (act.length ? act.length + " live" : "running") : "stopped");
@@ -877,7 +882,7 @@ function renderOverview(){
     "<td class='rt num'>" + dur(e.ttfb) + "</td><td class='rt num'>" + dur(e.ms) + "</td></tr>"
   ).join("") || '<tr><td colspan="5" class="empty">no traffic yet</td></tr>');
 }
-function cool(a){ return a.cooldownUntil > Date.now(); }
+function cool(a){ return a.cooldownUntil > nowMs(); }
 
 /* -------------------------------------------------------------- accounts */
 function renderAccounts(){
@@ -887,7 +892,7 @@ function renderAccounts(){
   el("acctEmpty").hidden = accs.length > 0;
   el("acctRows").innerHTML = accs.map(a => {
     const c = cool(a);
-    const days = (a.expiresAt - Date.now()) / 86400000;
+    const days = (a.expiresAt - nowMs()) / 86400000;
     const exp = a.expiresAt < Date.now() ? badge("expired", "expired")
       : days < 2 ? badge("cooling", Math.max(0, days).toFixed(1) + "d left")
       : '<span class="mono num">' + Math.round(days) + "d</span>";
@@ -896,7 +901,7 @@ function renderAccounts(){
       "<td><button class='row-btn' data-act='expand' data-id='" + esc(a.id) + "' aria-expanded='" + open + "'>" +
         svg("chev", "chev") + "<b>" + esc(a.label) + "</b></button> " + badge(c ? "cooling" : a.status) + "</td>" +
       "<td class='hide-sm sub'>" + esc(a.kind) + " · " + esc(a.region) + "</td>" +
-      "<td>" + exp + (c ? " " + badge("cooling", Math.ceil((a.cooldownUntil - Date.now()) / 1000) + "s") : "") + "</td>" +
+      "<td>" + exp + (c ? " " + badge("cooling", Math.ceil((a.cooldownUntil - nowMs()) / 1000) + "s") : "") + "</td>" +
       "<td class='rt num'>" + a.reqs + "</td>" +
       "<td class='rt num' style='color:" + (a.errs ? "var(--destructive)" : "inherit") + "'>" + a.errs + "</td>" +
       "<td class='rt num'>" + fmt(a.inTok) + "</td><td class='rt num'>" + fmt(a.outTok) + "</td>" +
@@ -922,7 +927,7 @@ function detail(a){
       "<dt>id</dt><dd class='mono sub' style='font-size:10.5px'>" + esc(a.id) + "</dd>" +
       "<dt>token</dt><dd>" + (a.hasToken ? "present · rotates on its own" : "missing") + "</dd>" +
       "<dt>cosy</dt><dd>" + (a.status === "auth_error" ? "needs re-auth" : "ready") + "</dd>" +
-      "<dt>expires</dt><dd class='mono num'>" + new Date(a.expiresAt).toLocaleString() + "</dd>" +
+      "<dt>expires</dt><dd class='mono num'>" + Math.round((a.expiresAt - nowMs()) / 86400000) + "d away</dd>" +
       "<dt>last error</dt><dd style='color:" + (a.lastError ? "var(--destructive)" : "var(--subtle)") + "'>" +
         esc(a.lastError || "—") + "</dd>" +
     "</dl>" +

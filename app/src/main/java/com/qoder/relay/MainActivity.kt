@@ -32,7 +32,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var web: WebView
     private lateinit var root: FrameLayout
-    private lateinit var progress: ProgressBar
+    private lateinit var spinner: ProgressBar
     private var failing = false
 
     private val app get() = applicationContext as RelayApp
@@ -59,7 +59,7 @@ class MainActivity : AppCompatActivity() {
             addJavascriptInterface(Bridge(), "Android")
             webViewClient = object : WebViewClient() {
                 override fun onPageFinished(view: WebView?, url: String?) {
-                    progress.visibility = View.GONE
+                    spinner.visibility = View.GONE
                     if (failing) showOfflineScreen()
                 }
 
@@ -68,18 +68,18 @@ class MainActivity : AppCompatActivity() {
                 ) {
                     if (req?.isForMainFrame == true) {
                         failing = true
-                        progress.visibility = View.GONE
+                        spinner.visibility = View.GONE
                         showOfflineScreen()
                     }
                 }
             }
         }
-        progress = ProgressBar(this).apply {
+        spinner = ProgressBar(this).apply {
             isIndeterminate = true
             visibility = View.VISIBLE
         }
         root.addView(web, FrameLayout.LayoutParams(-1, -1))
-        root.addView(progress, FrameLayout.LayoutParams(-2, -2, android.view.Gravity.CENTER))
+        root.addView(spinner, FrameLayout.LayoutParams(-2, -2, android.view.Gravity.CENTER))
         setContentView(root)
         load()
     }
@@ -87,7 +87,7 @@ class MainActivity : AppCompatActivity() {
     private fun load() {
         runOnUiThread {
             failing = false
-            progress.visibility = View.VISIBLE
+            spinner.visibility = View.VISIBLE
             web.loadUrl("http://127.0.0.1:${app.port}/ui")
         }
     }

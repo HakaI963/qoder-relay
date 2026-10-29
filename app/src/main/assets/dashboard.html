@@ -265,9 +265,6 @@ pre.out.dim{color:var(--muted-fg)}
   border-radius:var(--radius);padding:var(--s4)}
 .dialog h3{font-size:14px;font-weight:600;margin-bottom:4px}
 .dialog .actions{display:flex;gap:var(--s2);align-items:center;margin-top:var(--s3);flex-wrap:wrap}
-.gate{height:100dvh;display:grid;place-items:center;padding:var(--s4)}
-.gate .dialog{max-width:340px;text-align:center}
-.gate .glyph{margin:0 auto var(--s3)}
 
 /* ==================================================== responsive + a11y css */
 @media (max-width:860px){
@@ -330,22 +327,7 @@ pre.out.dim{color:var(--muted-fg)}
 <symbol id="i-zap" viewBox="0 0 24 24"><path d="M13 2 4.6 12.6a1 1 0 0 0 .8 1.6H12l-1 7.8 8.4-10.6a1 1 0 0 0-.8-1.6H12Z"/></symbol>
 </defs></svg>
 
-<div class="gate" id="gate" hidden>
-  <div class="dialog">
-    <div class="brand" style="justify-content:center;padding:0 0 8px">
-      <span class="glyph"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-zap"/></svg></span>
-      <span class="txt"><b>Qoder Relay</b></span>
-    </div>
-    <p class="hint" style="margin-bottom:12px">Enter the relay key shown in the app under Settings → Key.</p>
-    <label class="sr" for="gateKey">Relay key</label>
-    <input class="field" id="gateKey" type="password" placeholder="sk-relay-…" autocomplete="off"
-      autocapitalize="off" spellcheck="false">
-    <button class="btn btn-primary" style="width:100%;margin-top:12px" onclick="gateSubmit()">
-      <svg class="ic ic-sm" aria-hidden="true"><use href="#i-key"/></svg> Unlock console</button>
-  </div>
-</div>
-
-<div class="app" id="app" hidden>
+<div class="app" id="app">
   <aside class="rail">
     <div class="brand">
       <span class="glyph"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-zap"/></svg></span>
@@ -1447,20 +1429,14 @@ async function boot(){
     try { const b = await (await fetch("/relay/boot")).json();
       if (b.loopback && b.key) { KEY = b.key; localStorage.setItem("qr.key", KEY); have = true; } } catch (e) {}
   }
-  if (!have && !KEY) { el("gate").hidden = false; el("gateKey").focus(); return; }
-  el("gate").hidden = true; el("app").hidden = false;
+  el("app").hidden = false;
+  if (!have && !KEY) el("fState").textContent = "no key — open from the app or add ?key=";
   await refresh();
   const h = (location.hash || "").slice(1);
   go(["overview", "accounts", "requests", "models", "console", "settings"].indexOf(h) >= 0
     ? h : (localStorage.getItem("qr.view") || "overview"));
   startPolling();
 }
-function gateSubmit(){
-  KEY = el("gateKey").value.trim();
-  if (!KEY) return;
-  localStorage.setItem("qr.key", KEY); boot();
-}
-el("gateKey").addEventListener("keydown", (e) => { if (e.key === "Enter") gateSubmit(); });
 document.addEventListener("visibilitychange", () => { if (!document.hidden && polling) refresh(); });
 window.__onResume = () => { if (polling) refresh(); };
 boot();

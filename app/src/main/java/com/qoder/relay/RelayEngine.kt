@@ -116,6 +116,36 @@ class RelayEngine(val repo: AccountRepo) {
         }
     }
 
+    // -------------------------------------------------- live in-flight tracking
+    /** reqId -> mutable progress record, kept while a request is being served. */
+    private val active = ConcurrentHashMap<String, JSONObject>()
+
+    fun beginActive(reqId: String, account: String, model: String, attempt: Int) {
+        active[reqId] = JSONObject()
+            .put("id", reqId).put("account", account).put("model", model)
+            .put("start", System.currentTimeMillis()).put("state", "waiting")
+            .put("attempt", attempt).put("chunks", 0).put("bytes", 0).put("ttfb", -1)
+    }
+
+    fun markStreaming(reqId: String, ttfb: Long) {
+        active[reqId]?.put("state", "streaming")?.put("ttfb", ttfb)
+    }
+
+    fun markActive(reqId: String, chunks: Int, bytes: Long) {
+        active[reqId]?.put("chunks", chunks)?.put("bytes", bytes)
+    }
+
+    fun endActive(reqId: String, state: String) {
+        active.remove(reqId)?.put("state", state)
+    }
+
+    fun activeList(): List<JSONObject> {
+        val cutoff = System.currentTimeMillis() - 20 * 60_000
+        active.entries.filter { it.value.optLong("start") < cutoff }
+            .forEach { active.remove(it.key) }
+        return active.values.sortedByDescending { it.optLong("start") }.map { JSONObject(it.toString()) }
+    }
+
     private fun modelConfig(key: String): JSONObject {
         val info = modelInfo[key]
         val display = info?.first ?: key

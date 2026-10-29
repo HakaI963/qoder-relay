@@ -212,7 +212,7 @@ class RelayServer(
         note: (String) -> Unit
     ): Pair<Opened?, String> {
         var lastErr = "no accounts"
-        for (acc in cands) {
+        for ((i, acc) in cands.withIndex()) {
             if (System.currentTimeMillis() > deadline) {
                 lastErr = "relay request budget exhausted"
                 break
@@ -226,11 +226,13 @@ class RelayServer(
             val sessionId = openai.optString("relay_session_id").ifEmpty { reqId }
             val wire = engine.buildWire(model, openai, reqId, sessionId)
             val t0 = System.currentTimeMillis()
+            engine.beginActive(reqId, acc.label, model, i + 1)
             val (resp, err) = openUpstream(acc, wire, model)
             if (resp != null) {
                 acc.reqs++; acc.status = "active"; acc.lastError = ""; acc.cooldownUntil = 0
                 return Opened(resp, acc, reqId, t0) to ""
             }
+            engine.endActive(reqId, "failover")
             engine.penalize(acc, err, httpCode(err))
             acc.failovers++
             engine.logEvent(event(reqId, acc, model, httpCode(err), "failover", 0, 0, t0, err))
@@ -287,6 +289,7 @@ class RelayServer(
         var outTok = 0L
         var usageSeen = false
         var chunks = 0
+        var bytes = 0L
         var ttfb = -1L
         var sawDone = false
         var failure: String? = null
@@ -295,6 +298,7 @@ class RelayServer(
             while (!pipe.aborted) {
                 val line = reader.readLine() ?: break
                 if (!line.startsWith("data:")) continue
+                bytes += line.length
                 val data = line.substring(5).trim()
                 if (data.isEmpty()) continue
                 if (data == "[DONE]") { sawDone = true; break }
@@ -306,8 +310,12 @@ class RelayServer(
                     inTok = if (u.has("prompt_tokens")) u.getLong("prompt_tokens") else u.optLong("input_tokens", inTok)
                     outTok = if (u.has("completion_tokens")) u.getLong("completion_tokens") else u.optLong("output_tokens", outTok)
                 }
-                if (chunks == 0) ttfb = System.currentTimeMillis() - o.t0
+                if (chunks == 0) {
+                    ttfb = System.currentTimeMillis() - o.t0
+                    engine.markStreaming(o.reqId, ttfb)
+                }
                 chunks++
+                if (chunks % 6 == 0) engine.markActive(o.reqId, chunks, bytes)
                 if (!pipe.pushData(normalize(inner, id, model, created))) break
             }
         } catch (e: Exception) {
@@ -317,14 +325,17 @@ class RelayServer(
         }
 
         if (pipe.aborted) {
+            engine.endActive(o.reqId, "client_gone")
             engine.logEvent(event(o.reqId, o.acc, model, 200, "client_gone", inTok, outTok, o.t0,
                 "client closed after $chunks chunks").put("ttfb", ttfb))
         } else if (chunks == 0) {
             val err = failure ?: "upstream closed before first chunk"
+            engine.endActive(o.reqId, "failover")
             engine.penalize(o.acc, err, 0)
             engine.logEvent(event(o.reqId, o.acc, model, 0, "failover", 0, 0, o.t0, err))
             app.repo.save()
         } else {
+            engine.endActive(o.reqId, if (sawDone) "ok" else "short")
             if (usageSeen) { o.acc.inTok += inTok; o.acc.outTok += outTok }
             o.acc.status = "active"; o.acc.lastError = ""
             app.repo.save()
@@ -583,11 +594,10 @@ class RelayServer(
             if (!want && app.isRunning()) { app.stopServerAsync(); restart = true }
         }
         app.saveTuning()
-        return jsonResponse(statusJson()
+        return jsonResponse(configJson()
             .put("restart", restart)
             .put("key_rotated", keyRotated)
-            .put("port", app.port)
-            .put("running", app.isRunning())
+            .put("inFlight", app.inFlight.get())
             .toString())
     }
 
@@ -768,11 +778,14 @@ class RelayServer(
         app.repo.accounts.forEach { arr.put(publicOf(it)) }
         val ev = JSONArray()
         synchronized(engine.recent) { engine.recent.forEach { ev.put(it) } }
+        val act = JSONArray()
+        engine.activeList().forEach { act.put(it) }
         return jsonResponse(JSONObject()
             .put("total_in", app.repo.totalIn())
             .put("total_out", app.repo.totalOut())
             .put("in_flight", app.inFlight.get())
             .put("accounts", arr)
+            .put("active", act)
             .put("recent", ev).toString())
     }
 
@@ -782,6 +795,7 @@ class RelayServer(
         .put("version", RelayApp.VERSION)
         .put("uptimeMs", System.currentTimeMillis() - app.startedAt)
         .put("inFlight", app.inFlight.get())
+        .put("active", engine.activeList().size)
         .put("accounts", app.repo.accounts.size)
         .put("enabled", app.repo.accounts.count { it.enabled })
         .put("cooling", app.repo.accounts.count { it.cooldownUntil > System.currentTimeMillis() })

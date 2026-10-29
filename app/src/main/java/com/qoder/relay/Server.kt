@@ -82,7 +82,13 @@ class RelayServer(
 
     // ------------------------------------------------------------------- auth
 
+    /**
+     * Loopback is the device's own console: it is already inside the app's sandbox, so it is
+     * trusted and never needs a key typed in. Anything arriving over the LAN still must present
+     * the relay key.
+     */
     private fun keyOk(session: IHTTPSession): Boolean {
+        if (session.isLoopback()) return true
         val hdr = session.headers["authorization"]?.removePrefix("Bearer ")?.trim()
             ?: session.headers["x-relay-key"]?.trim()
             ?: qp(session, "key")

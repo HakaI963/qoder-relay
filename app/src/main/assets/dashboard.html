@@ -206,6 +206,7 @@ dl.kv dd{margin:0;min-width:0}
 .legend{display:flex;align-items:center;gap:var(--s3);font-size:11.5px;color:var(--muted-fg)}
 .legend .k{display:inline-flex;align-items:center;gap:6px}
 .legend .swatch{width:14px;height:0;border-top:1.5px solid var(--info)}
+.legend .swatch.wait{border-color:var(--warn)}
 .legend .swatch.dash{border-top-style:dashed;border-color:var(--warn)}
 #chart-readout{font:11px/1 var(--mono);color:var(--foreground)}
 
@@ -269,19 +270,19 @@ pre.out.dim{color:var(--muted-fg)}
 /* ==================================================== responsive + a11y css */
 @media (max-width:860px){
   body{overflow:auto}
-  .app{flex-direction:column-reverse;height:auto;min-height:100dvh}
-  .rail{width:auto;flex:0 0 auto;position:sticky;bottom:0;z-index:35;
-    flex-direction:row;align-items:center;gap:var(--s1);
-    padding:var(--s1) var(--s2) calc(var(--s1) + var(--sab));
-    border-right:0;border-top:1px solid var(--border);overflow-x:auto;
-    box-shadow:0 -8px 24px rgba(0,0,0,.28)}
+  .app{display:block;height:auto;min-height:100dvh}
+  .rail{position:fixed;left:0;right:0;bottom:0;z-index:40;
+    display:flex;flex-direction:row;align-items:center;gap:2px;
+    width:auto;padding:var(--s1) var(--s2) calc(var(--s1) + var(--sab));
+    background:var(--surface);border-top:1px solid var(--border);
+    box-shadow:0 -8px 24px rgba(0,0,0,.30)}
   .brand,.rail .spacer,.status{display:none}
   .tablist{flex-direction:row;gap:2px;width:100%;justify-content:space-between}
   .tab-trigger{flex:1 0 auto;min-height:48px;padding:0 10px;justify-content:center;gap:7px;font-size:12px}
   .tab-trigger .count{display:none}
-  main{padding:var(--s3) var(--s3) calc(var(--s5) + var(--sab))}
-  .topbar{height:44px;padding:0 var(--s3);position:sticky;top:0;
-    padding-top:0;background:var(--surface)}
+  main{padding:var(--s3) var(--s3) 84px;overflow:visible}
+  .body{min-height:calc(100dvh - 60px)}
+  .topbar{position:sticky;top:0;z-index:30}
   .topbar .hide-sm{display:none}
   .cols,.grid-cards{grid-template-columns:1fr}
   .metric{padding:8px 10px}
@@ -368,12 +369,8 @@ pre.out.dim{color:var(--muted-fg)}
     <div class="topbar">
       <h1 id="title">Overview</h1>
       <span class="sep hide-sm"></span>
-      <span class="hint num hide-sm" id="meta"></span>
+      <span class="hint num" id="meta"></span>
       <span class="grow"></span>
-      <button class="btn btn-ghost btn-xs" id="btnLive" onclick="togglePoll()"
-        aria-pressed="true" title="Pause live refresh">
-        <svg class="ic ic-sm" aria-hidden="true"><use href="#i-pause"/></svg>
-        <span class="hide-sm">Live</span></button>
       <button class="btn btn-xs" onclick="refresh(true)" aria-label="Refresh now">
         <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg></button>
       <button class="btn btn-xs" id="btnSrv" onclick="toggleServer()">
@@ -382,19 +379,6 @@ pre.out.dim{color:var(--muted-fg)}
     </div>
     <main>
       <section class="view" id="v-overview" data-active="true" role="tabpanel" aria-label="Overview">
-        <div class="metrics">
-          <div class="metric"><div class="k">requests</div><div class="v" id="sReqs">0</div>
-            <div class="n" id="sReqsN">—</div></div>
-          <div class="metric"><div class="k">in flight</div><div class="v" id="sFly">0</div>
-            <div class="n" id="sFlyN">idle</div></div>
-          <div class="metric"><div class="k">tokens in</div><div class="v" id="sIn">0</div>
-            <div class="n" id="sInN">cumulative</div></div>
-          <div class="metric"><div class="k">tokens out</div><div class="v" id="sOut">0</div>
-            <div class="n" id="sOutN">cumulative</div></div>
-          <div class="metric"><div class="k">errors</div><div class="v" id="sErr">0</div>
-            <div class="n" id="sErrN">—</div></div>
-        </div>
-
         <div class="card" style="margin-top:12px">
           <div class="card-head"><h2>Endpoint</h2><span class="grow"></span>
             <button class="btn btn-xs btn-ghost" onclick="copy(base()+'/v1')">
@@ -413,12 +397,6 @@ pre.out.dim{color:var(--muted-fg)}
                 <button class="btn btn-xs btn-ghost" onclick="copy(KEY)">copy</button></dd>
             </dl>
           </div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2>In flight</h2><span class="grow"></span>
-            <span class="hint" id="ovFlyN"></span></div>
-          <div class="card-body tight" id="ovLive"></div>
         </div>
 
         <div class="grid-cards" style="margin-top:12px">
@@ -470,31 +448,10 @@ pre.out.dim{color:var(--muted-fg)}
       </section>
 
       <section class="view" id="v-requests" role="tabpanel" aria-label="Requests">
-        <div class="metrics">
-          <div class="metric"><div class="k">in flight</div><div class="v" id="rFly">0</div>
-            <div class="n" id="rFlyN">idle</div></div>
-          <div class="metric"><div class="k">median ttfb</div><div class="v" id="rTtfb">—</div>
-            <div class="n">time to first byte</div></div>
-          <div class="metric"><div class="k">p95 total</div><div class="v" id="rP95">—</div>
-            <div class="n">completed requests</div></div>
-          <div class="metric"><div class="k">failover rate</div><div class="v" id="rRate">—</div>
-            <div class="n" id="rRateN">—</div></div>
-        </div>
-
-        <div class="card">
-          <div class="card-head"><h2>Latency trend</h2><span class="grow"></span>
-            <span class="legend">
-              <span class="k"><span class="swatch"></span>total</span>
-              <span class="k"><span class="swatch dash"></span>ttfb</span>
-            </span>
-            <span class="hint num" id="chart-readout">hover a point</span></div>
-          <div class="card-body tight" id="chartHost"></div>
-        </div>
-
         <div class="card">
           <div class="card-head"><h2>Live</h2><span class="grow"></span>
-            <span class="hint">bar length is relative to the p95 of the visible window ·
-              amber = waiting for upstream headers · blue = streaming</span></div>
+            <span class="legend"><span class="k"><span class="swatch wait"></span>waiting</span>
+              <span class="k"><span class="swatch"></span>streaming</span></span></div>
           <div class="card-body tight" id="reqLive"></div>
         </div>
 
@@ -503,13 +460,11 @@ pre.out.dim{color:var(--muted-fg)}
             <span class="btn-group" role="group" aria-label="Filter states">
               <button data-f="all" data-state="on" onclick="setFilter('all')">all</button>
               <button data-f="ok" onclick="setFilter('ok')">ok</button>
-              <button data-f="short" onclick="setFilter('short')">short</button>
-              <button data-f="failover" onclick="setFilter('failover')">failover</button>
-              <button data-f="client_gone" onclick="setFilter('client_gone')">dropped</button>
+              <button data-f="bad" onclick="setFilter('bad')">failed</button>
             </span></div>
           <div class="tbl-wrap"><table id="reqTable">
             <thead><tr><th>time</th><th>account</th><th>model</th><th>state</th><th>tape</th>
-              <th class="rt">ttfb</th><th class="rt">total</th><th class="rt">in</th><th class="rt">out</th>
+              <th class="rt">ttfb</th><th class="rt">total</th><th class="rt">tokens</th>
               <th>note</th></tr></thead>
             <tbody id="reqRows"></tbody></table></div>
           <div class="empty" id="reqEmpty" hidden>Nothing matches this filter.</div>
@@ -650,13 +605,7 @@ pre.out.dim{color:var(--muted-fg)}
           </div>
         </div>
 
-        <div class="card">
-          <div class="card-head"><h2>Client snippet</h2><span class="grow"></span>
-            <button class="btn btn-xs btn-ghost" onclick="copy(el('stClient').textContent)">
-              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-copy"/></svg> copy</button></div>
-          <div class="card-body"><pre class="out" id="stClient"></pre></div>
-        </div>
-      </section>
+              </section>
     </main>
   </div>
 </div>
@@ -714,7 +663,7 @@ const Native = window.Android || null;
 let KEY = localStorage.getItem("qr.key") || "";
 let DATA = { status:{}, usage:{ accounts:[], recent:[], active:[] }, catalog:[], config:{} };
 let filter = "all", keyShown = false, loginTimer = null, pollTimer = null, aborter = null;
-let polling = true, openAcc = localStorage.getItem("qr.openAcc") || "";
+let openAcc = localStorage.getItem("qr.openAcc") || "";
 
 /* -------------------------------------------------------------- primitives */
 const fmt = (n) => { n = Number(n || 0);
@@ -755,10 +704,14 @@ async function api(path, opts){
 const TONE = { ok:"ok", active:"ok", ready:"ok", streaming:"live", waiting:"warn", cooling:"warn",
   short:"warn", unknown:"warn", client_gone:"warn", error:"err", auth_error:"err", failover:"err",
   expired:"err" };
+const WORD = { auth_error:"needs re-auth", client_gone:"dropped", unknown:"unknown",
+  error:"error", failover:"failed", streaming:"streaming", waiting:"waiting",
+  cooling:"cooling", short:"cut short", ok:"ok", active:"active", expired:"expired" };
 function badge(state, text){
   return '<span class="badge" data-tone="' + (TONE[state] || "") + '">' +
-    (state === "streaming" || state === "waiting" ? '<span class="dot"></span>' : "") +
-    esc(text === undefined ? state : text) + "</span>";
+    (state === "streaming" || state === "waiting" || state === "cooling"
+      ? '<span class="dot"></span>' : "") +
+    esc(text !== undefined ? text : (WORD[state] || state)) + "</span>";
 }
 
 /* ------------------------------------------------------------- live tape */
@@ -865,99 +818,36 @@ function render(){
   window.scrollTo(sx, sy);
 }
 
+function setTxt(id, v){ const n = el(id); if (n) n.textContent = v; }
+function setHtml(id, v){ const n = el(id); if (n) n.innerHTML = v; }
 function renderShell(){
-  const s = DATA.status, u = DATA.usage;
-  el("ver").textContent = "v" + (s.version || "0.2.1");
-  el("navAcc").textContent = s.accounts || 0;
-  const act = u.active || [], fly = act.length;
-  el("navLive").textContent = fly;
-  el("navLive").closest(".tab-trigger").dataset.haslive = fly ? "true" : "false";
-  el("fState").textContent = s.running ? (fly ? fly + " live" : "running") : "stopped";
-  el("fPort").textContent = ":" + s.port + " · " + (s.lan || "loopback only");
-  el("fUptime").textContent = "up " + up(s.uptimeMs);
-  el("fSigner").textContent = "signer " + (s.signer || "—");
-  el("fAcc").textContent = (s.enabled || 0) + " of " + (s.accounts || 0) + " in rotation" +
-    (s.cooling ? " · " + s.cooling + " cooling" : "");
-  el("btnSrvTx").textContent = s.running ? "stop" : "start";
-  const reqs = sum("reqs"), errs = sum("errs"), fov = sum("failovers");
-  el("meta").textContent = reqs + " req · " + errs + " err · " + fov + " failover · " +
-    fmt(u.total_in) + " in / " + fmt(u.total_out) + " out";
-  el("epLan").textContent = lanBase() + "/v1";
-  el("epLocal").textContent = base() + "/v1";
-  el("epKey").textContent = keyShown ? KEY : "••••••••••••••••";
-  el("keyBtnTx").textContent = keyShown ? "hide" : "show";
-  el("sReqs").textContent = fmt(reqs);
-  el("sReqsN").textContent = (u.accounts || []).length + " accounts · " + (s.models || 0) + " models";
-  el("sFly").textContent = fly;
-  el("sFlyN").textContent = fly ? act.filter(a => a.state === "waiting").length + " waiting headers" : "idle";
-  el("sIn").textContent = fmt(u.total_in);
-  el("sOut").textContent = fmt(u.total_out);
-  el("sInN").textContent = fmt(Math.round((u.total_in || 0) / Math.max(1, reqs))) + " avg per request";
-  el("sOutN").textContent = fmt(Math.round((u.total_out || 0) / Math.max(1, reqs))) + " avg per request";
-  el("sErr").textContent = fmt(errs);
-  el("sErrN").textContent = reqs ? pct(errs, reqs) + "% of requests" : "—";
+  const st = DATA.status, u = DATA.usage, act = u.active || [];
+  setTxt("ver", "v" + (st.version || "0.2.4"));
+  setTxt("navAcc", st.accounts || 0);
+  setTxt("navLive", act.length);
+  setTxt("fState", st.running ? (act.length ? act.length + " live" : "running") : "stopped");
+  setTxt("fPort", ":" + st.port + " · " + (st.lan || "this device only"));
+  setTxt("fUptime", "up " + up(st.uptimeMs));
+  setTxt("fSigner", "signer " + (st.signer || "—"));
+  setTxt("fAcc", (st.enabled || 0) + " of " + (st.accounts || 0) + " in rotation" +
+    (st.cooling ? " · " + st.cooling + " cooling" : ""));
+  setTxt("btnSrvTx", st.running ? "stop" : "start");
+
+  const reqs = sum("reqs"), errs = sum("errs");
+  setTxt("meta", reqs ? reqs + " req · " + errs + " err · " + fmt(u.total_in) + " in / " +
+    fmt(u.total_out) + " out" : "");
+  setTxt("epLan", lanBase() + "/v1");
+  setTxt("epLocal", base() + "/v1");
+  setTxt("epKey", keyShown ? KEY : "••••••••••••••••");
+  setTxt("keyBtnTx", keyShown ? "hide" : "show");
 }
 function sum(k){ return (DATA.usage.accounts || []).reduce((a, b) => a + (b[k] || 0), 0); }
 function up(v){ v = Math.floor((v || 0) / 1000); const h = Math.floor(v / 3600);
   return (h ? h + "h " : "") + Math.floor((v % 3600) / 60) + "m"; }
 function toggleKey(){ keyShown = !keyShown; renderShell(); }
-function togglePoll(){
-  polling = !polling;
-  el("btnLive").setAttribute("aria-pressed", String(polling));
-  el("btnLive").querySelector("use").setAttribute("href", polling ? "#i-pause" : "#i-play");
-  el("btnLive").querySelector("span").textContent = polling ? "Live" : "Paused";
-  el("btnLive").title = polling ? "Pause live refresh" : "Resume live refresh";
-  clearInterval(pollTimer);
-  if (polling) startPolling();
-}
 function startPolling(){
   clearInterval(pollTimer);
-  if (!polling) return;
   pollTimer = setInterval(() => { if (!document.hidden && !aborter) refresh(); }, 2500);
-}
-
-/* ---------------------------------------------------------------- chart */
-function renderChart(){
-  const host = el("chartHost");
-  const pts = (DATA.usage.recent || []).slice(0, 40).reverse();
-  if (pts.length < 3) {
-    host.innerHTML = '<div class="empty">Not enough traffic yet to plot a trend.</div>';
-    return;
-  }
-  const W = 600, H = 100, pad = 6;
-  const max = Math.max(1000, quant(pts.map(e => e.ms || 0), 0.98));
-  const x = (i) => pad + (W - pad * 2) * (i / (pts.length - 1));
-  const y = (v) => H - pad - (H - pad * 2) * Math.min(1, Math.max(0, v) / max);
-  const line = (get) => pts.map((e, i) => (i ? "L" : "M") + x(i).toFixed(1) + " " + y(get(e)).toFixed(1)).join(" ");
-  const gridY = [0.25, 0.5, 0.75, 1].map(f =>
-    '<line class="grid" x1="' + pad + '" x2="' + (W - pad) + '" y1="' + y(max * f).toFixed(1) +
-    '" y2="' + y(max * f).toFixed(1) + '" vector-effect="non-scaling-stroke"/>').join("");
-  const hits = pts.map((e, i) =>
-    '<rect class="hit" x="' + (x(i) - (W / pts.length) / 2).toFixed(1) + '" y="0" width="' +
-    (W / pts.length).toFixed(1) + '" height="' + H + '" data-i="' + i + '"/>').join("");
-  host.innerHTML =
-    '<svg class="chart" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" tabindex="0" role="img"' +
-    ' aria-label="Latency trend for the last ' + pts.length + ' requests. Median total ' +
-    dur(quant(pts.map(p => p.ms), 0.5)) + ', p95 ' + dur(quant(pts.map(p => p.ms), 0.95)) +
-    ', ' + pts.filter(p => p.state === "failover").length + ' failed.">' +
-    gridY +
-    '<path class="total" d="' + line(e => e.ms || 0) + '" vector-effect="non-scaling-stroke"/>' +
-    '<path class="ttfb" d="' + line(e => (e.ttfb >= 0 ? e.ttfb : 0)) + '" vector-effect="non-scaling-stroke"/>' +
-    '<circle class="peak" id="chart-peak" r="2.5" cx="0" cy="0" vector-effect="non-scaling-stroke"/>' +
-    hits + "</svg>";
-  const peak = el("chart-peak"), out = el("chart-readout");
-  const show = (i) => {
-    const e = pts[i]; if (!e) return;
-    peak.setAttribute("cx", x(i)); peak.setAttribute("cy", y(e.ms || 0));
-    out.textContent = clock(e.ts) + " · " + e.account + " · " + e.model + " · total " + dur(e.ms) +
-      " · ttfb " + dur(e.ttfb) + " · " + fmt(e.in) + "→" + fmt(e.out);
-  };
-  host.querySelectorAll(".hit").forEach(r => {
-    r.addEventListener("mouseenter", () => show(+r.dataset.i));
-    r.addEventListener("click", () => show(+r.dataset.i));
-  });
-  host.querySelector("svg").addEventListener("focus", () => show(pts.length - 1));
-  show(pts.length - 1);
 }
 
 /* -------------------------------------------------------------- overview */
@@ -971,32 +861,21 @@ function miniTable(cols, rows){
     "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div>";
 }
 function renderOverview(){
-  const act = DATA.usage.active || [];
-  const scale = scaleOf((DATA.usage.recent || []).slice(0, 40));
-  el("ovFlyN").textContent = act.length ? act.length + " request(s) being served" : "idle";
-  el("ovLive").innerHTML = act.length
-    ? miniTable([{ t:"started" }, { t:"account" }, { t:"model" }, { t:"try", rt:true }, { t:"state" },
-        { t:"tape" }, { t:"chunks", rt:true }],
-      act.slice(0, 6).map(a => "<tr><td class='mut num'>" + clock(a.start) + "</td>" +
-        "<td class='nowrap'><b>" + esc(a.account) + "</b></td>" +
-        "<td class='mono sub'>" + esc(a.model) + "</td><td class='rt num'>" + (a.attempt || 1) + "</td>" +
-        "<td>" + badge(a.state) + "</td><td>" + liveTape(a, scale) + "</td>" +
-        "<td class='rt num'>" + (a.chunks || 0) + "</td></tr>"))
-    : '<div class="empty">Nothing in flight right now.</div>';
-
-  el("ovPool").innerHTML = (DATA.usage.accounts || []).slice(0, 6).map(a =>
+  setHtml("ovPool", (DATA.usage.accounts || []).map(a =>
     "<tr><td class='nowrap'><b>" + esc(a.label) + "</b></td>" +
     "<td>" + badge(cool(a) ? "cooling" : a.status) + "</td>" +
-    "<td class='rt num'>" + a.reqs + "</td><td class='rt num'>" + (a.errs + a.failovers) + "</td>" +
-    "<td class='rt num'>" + fmt(a.inTok) + "</td><td class='rt num'>" + fmt(a.outTok) + "</td></tr>").join("")
-    || '<tr><td colspan="6" class="empty">no accounts</td></tr>';
+    "<td class='rt num'>" + a.reqs + "</td>" +
+    "<td class='rt num' style='color:" + (a.errs ? "var(--destructive)" : "var(--subtle)") + "'>" +
+      a.errs + "</td>" +
+    "<td class='rt num'>" + fmt(a.inTok) + "</td><td class='rt num'>" + fmt(a.outTok) + "</td></tr>"
+  ).join("") || '<tr><td colspan="6" class="empty">no accounts yet</td></tr>');
 
-  el("ovEvents").innerHTML = (DATA.usage.recent || []).slice(0, 8).map(e =>
+  setHtml("ovEvents", (DATA.usage.recent || []).slice(0, 8).map(e =>
     "<tr><td class='mut num'>" + clock(e.ts) + "</td>" +
     "<td class='nowrap'>" + esc(e.account) + ' <span class="mono sub">' + esc(e.model) + "</span></td>" +
     "<td>" + badge(e.state) + "</td>" +
-    "<td class='rt num'>" + dur(e.ttfb) + "</td><td class='rt num'>" + dur(e.ms) + "</td></tr>").join("")
-    || '<tr><td colspan="5" class="empty">no traffic yet</td></tr>';
+    "<td class='rt num'>" + dur(e.ttfb) + "</td><td class='rt num'>" + dur(e.ms) + "</td></tr>"
+  ).join("") || '<tr><td colspan="5" class="empty">no traffic yet</td></tr>');
 }
 function cool(a){ return a.cooldownUntil > Date.now(); }
 
@@ -1053,10 +932,8 @@ function detail(a){
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">' +
         act("refreshone", svg("refresh", "ic-sm") + " models") +
         (cool(a) ? act("uncool", "clear cooldown", "btn-ghost") : "") +
-        act("probe", svg("activity", "ic-sm") + " self-test") +
-        act("rename", svg("pencil", "ic-sm") + " rename") +
-        act("pin", svg("terminal", "ic-sm") + " use in console") +
-        act("del", svg("trash", "ic-sm") + " remove", "btn-destructive") +
+        act("rename", "rename") +
+        act("del", "remove", "btn-destructive") +
       "</div></div></div>";
 }
 function expand(id){ openAcc = openAcc === id ? "" : id;
@@ -1067,41 +944,29 @@ function renderRequests(){
   const act = DATA.usage.active || [];
   const hist = DATA.usage.recent || [];
   const scale = scaleOf(hist.slice(0, 40));
-  el("rFly").textContent = act.length;
-  el("rFlyN").textContent = act.length
-    ? act.filter(a => a.state === "waiting").length + " waiting for headers" : "idle";
-  const tt = hist.map(e => e.ttfb).filter(v => v >= 0);
-  const ms = hist.map(e => e.ms).filter(v => v > 0);
-  el("rTtfb").textContent = tt.length ? dur(quant(tt, 0.5)) : "—";
-  el("rP95").textContent = ms.length ? dur(quant(ms, 0.95)) : "—";
-  const bad = hist.filter(e => e.state === "failover").length;
-  el("rRate").textContent = hist.length ? pct(bad, hist.length) + "%" : "—";
-  el("rRateN").textContent = bad + " of " + hist.length + " logged";
-  renderChart();
-
-  el("reqLive").innerHTML = act.length
-    ? '<div class="tbl-wrap"><table id="liveTable"><thead><tr><th>started</th><th>account</th><th>model</th>' +
-      '<th class="rt">try</th><th>state</th><th>tape</th><th class="rt">chunks</th><th class="rt">bytes</th>' +
-      "</tr></thead><tbody>" + act.map(a => "<tr>" +
-        "<td class='mut num'>" + clock(a.start) + "</td><td><b>" + esc(a.account) + "</b></td>" +
-        "<td class='mono sub'>" + esc(a.model) + "</td><td class='rt num'>" + (a.attempt || 1) + "</td>" +
+  setHtml("reqLive", act.length
+    ? '<div class="tbl-wrap"><table id="liveTable"><thead><tr><th>account</th><th>model</th>' +
+      '<th>state</th><th>tape</th><th class="rt">tok in→out</th></tr></thead><tbody>' +
+      act.map(a => "<tr>" +
+        "<td class='nowrap'><b>" + esc(a.account) + "</b> <span class='sub'>try " + (a.attempt || 1) + "</span></td>" +
+        "<td class='mono sub'>" + esc(a.model) + "</td>" +
         "<td>" + badge(a.state) + "</td><td>" + liveTape(a, scale) + "</td>" +
-        "<td class='rt num'>" + (a.chunks || 0) + "</td><td class='rt num'>" + fmt(a.bytes) + "</td></tr>").join("") +
+        "<td class='rt num sub'>" + (a.chunks || 0) + "c · " + fmt(a.bytes) + "</td></tr>").join("") +
       "</tbody></table></div>"
-    : '<div class="empty">No request in flight.</div>';
+    : '<div class="empty">Idle — nothing in flight.</div>');
 
-  const rows = hist.filter(e => filter === "all" || e.state === filter).slice(0, 90);
+  const rows = hist.filter(e => filter === "all" ? true
+    : filter === "ok" ? e.state === "ok" : e.state !== "ok").slice(0, 80);
   el("reqEmpty").hidden = rows.length > 0;
-  el("reqRows").innerHTML = rows.map(e => "<tr>" +
+  setHtml("reqRows", rows.map(e => "<tr>" +
     "<td class='mut num'>" + clock(e.ts) + "</td>" +
     "<td class='nowrap'>" + esc(e.account) + "</td>" +
     "<td class='mono sub'>" + esc(e.model) + "</td>" +
-    "<td>" + badge(e.state) + "</td>" +
-    "<td>" + tape(e, scale) + "</td>" +
+    "<td>" + badge(e.state) + "</td><td>" + tape(e, scale) + "</td>" +
     "<td class='rt num'>" + dur(e.ttfb) + "</td><td class='rt num'>" + dur(e.ms) + "</td>" +
-    "<td class='rt num'>" + fmt(e.in) + "</td><td class='rt num'>" + fmt(e.out) + "</td>" +
-    '<td class="sub trunc" style="max-width:260px" title="' + esc(e.err || "") + '">' +
-      esc(e.err || "") + "</td></tr>").join("");
+    "<td class='rt num'>" + fmt(e.in) + "→" + fmt(e.out) + "</td>" +
+    '<td class="sub trunc" style="max-width:200px" title="' + esc(e.err || "") + '">' +
+      esc(e.err || "") + "</td></tr>").join(""));
   document.querySelectorAll(".btn-group button[data-f]").forEach(b =>
     b.dataset.state = b.dataset.f === filter ? "on" : "");
 }
@@ -1214,7 +1079,7 @@ async function runTest(){
     if (!out) el("cOut").textContent = String(e.message);
   } finally {
     el("cRun").disabled = false; el("cStop").disabled = true; aborter = null;
-    if (polling) refresh();
+    refresh();
   }
 }
 
@@ -1229,11 +1094,6 @@ function renderSettings(){
   el("stVer").textContent = s.version || "0.2.1";
   el("stSigner").textContent = c.signerState || s.signer || "—";
   el("stSignerErr").textContent = c.signerError || "none";
-  el("stClient").textContent =
-    'from openai import OpenAI\nclient = OpenAI(base_url="' + lanBase() + '/v1",\n' +
-    '                api_key="' + KEY + '")\nfor c in client.chat.completions.create(\n' +
-    '    model="qfmodel", stream=True,\n' +
-    '    messages=[{"role":"user","content":"ping"}]):\n    print(c.choices[0].delta.content or "", end="")';
   if (document.activeElement !== el("stPort")) el("stPort").value = c.port || s.port;
   const ae = document.activeElement;
   if (ae && ae.type === "range") return;              // never fight a slider mid-drag
@@ -1437,8 +1297,8 @@ async function boot(){
     ? h : (localStorage.getItem("qr.view") || "overview"));
   startPolling();
 }
-document.addEventListener("visibilitychange", () => { if (!document.hidden && polling) refresh(); });
-window.__onResume = () => { if (polling) refresh(); };
+document.addEventListener("visibilitychange", () => { if (!document.hidden) refresh(); });
+window.__onResume = () => { refresh(); };
 boot();
 </script>
 </body>

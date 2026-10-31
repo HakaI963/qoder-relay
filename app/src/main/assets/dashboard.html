@@ -271,6 +271,11 @@ pre.out.dim{color:var(--muted-fg)}
   main{padding:8px 10px 14px}
   .track{width:70px;flex-basis:70px}
   tbody td,thead th{padding-left:6px;padding-right:6px}
+  /* accounts: keep account / token / req / serving / rotation, drop the rest */
+  #v-accounts th:nth-child(2),#v-accounts td:nth-child(2),
+  #v-accounts th:nth-child(5),#v-accounts td:nth-child(5),
+  #v-accounts th:nth-child(6),#v-accounts td:nth-child(6),
+  #v-accounts th:nth-child(7),#v-accounts td:nth-child(7){display:none}
 }
 
 @media (prefers-reduced-motion:reduce){
@@ -713,7 +718,7 @@ function setTxt(id, v){ const n = el(id); if (n) n.textContent = v; }
 function setHtml(id, v){ const n = el(id); if (n) n.innerHTML = v; }
 function renderShell(){
   const st = DATA.status, u = DATA.usage, act = u.active || [];
-  setTxt("ver", "v" + (st.version || "0.3.0"));
+  setTxt("ver", "v" + (st.version || "0.3.1"));
   setTxt("navAcc", st.accounts || 0);
   setTxt("navLive", act.length);
   setTxt("fState", st.running ? (act.length ? act.length + " live" : "running") : "stopped");

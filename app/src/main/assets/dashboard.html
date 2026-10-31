@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="dark light">
-<meta name="theme-color" content="#0B1120">
+<meta name="color-scheme" content="light">
+<meta name="theme-color" content="#f6f7f9">
 <title>Qoder Relay — console</title>
 <style>
 /* ============================================================ design tokens
@@ -13,30 +13,24 @@
    Grammar follows shadcn/ui token names so the plain-CSS build stays sane:
    no framework, no CDN, one offline asset inside an Android WebView.        */
 :root{
-  --background:#0b1120; --surface:#111a2b; --surface-2:#0e1626; --card:#111a2b;
-  --muted:#1b2740; --muted-fg:#94a3b8; --subtle:#8b9bb4; --foreground:#e6eaf2;
-  --border:#243149; --border-strong:#33435f; --ring:#3b82f6;
-  --primary:#22c55e; --primary-fg:#08140d;
-  --info:#3b82f6; --warn:#f59e0b; --destructive:#ef4444;
-  --radius:8px; --radius-sm:6px; --radius-full:999px;
-  --s1:4px; --s2:8px; --s3:12px; --s4:16px; --s5:24px;
+  --background:#f6f7f9; --surface:#ffffff; --surface-2:#f1f3f6; --card:#ffffff;
+  --muted:#eef1f5; --muted-fg:#5a6472; --subtle:#7b8593; --foreground:#111827;
+  --border:#e3e7ed; --border-strong:#cbd3de; --ring:#2563eb;
+  --primary:#16a34a; --primary-fg:#ffffff;
+  --info:#2563eb; --warn:#c2740a; --destructive:#dc2626;
+  --radius:6px; --radius-sm:4px; --radius-full:999px;
+  --s1:3px; --s2:6px; --s3:9px; --s4:12px; --s5:18px;
   --sans:"Fira Sans",-apple-system,"Segoe UI",Roboto,system-ui,sans-serif;
   --mono:"Fira Code",ui-monospace,"SF Mono","Roboto Mono",Menlo,monospace;
-  --dur:180ms; --ease:cubic-bezier(.2,0,.38,1);
+  --dur:140ms; --ease:cubic-bezier(.2,0,.38,1);
   --sat:env(safe-area-inset-top,0px); --sab:env(safe-area-inset-bottom,0px);
   --sal:env(safe-area-inset-left,0px); --sar:env(safe-area-inset-right,0px);
 }
-html[data-theme="light"]{
-  --background:#f7f8fa; --surface:#ffffff; --card:#ffffff; --muted:#eef1f5;
-  --muted-fg:#5b6472; --subtle:#606a7a; --foreground:#0f172a;
-  --border:#dfe3ea; --border-strong:#c8cfda; --ring:#2563eb;
-  --primary:#15803d; --primary-fg:#ffffff; --info:#2563eb; --warn:#b45309;
-  --destructive:#b91c1c;
-}
+
 *{box-sizing:border-box}
 html,body{height:100%}
 body{margin:0;background:var(--background);color:var(--foreground);
-  font:13px/1.5 var(--sans);-webkit-font-smoothing:antialiased;
+  font:12px/1.45 var(--sans);-webkit-font-smoothing:antialiased;
   padding-left:var(--sal);padding-right:var(--sar);overflow:hidden}
 h1,h2,h3,h4,p{margin:0}
 button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
@@ -59,7 +53,7 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 
 /* ==================================================================== shell */
 .app{display:flex;height:100dvh;overflow:hidden}
-.rail{width:172px;flex:0 0 172px;display:flex;flex-direction:column;gap:var(--s1);
+.rail{width:146px;flex:0 0 146px;display:flex;flex-direction:column;gap:var(--s1);
   background:var(--surface);border-right:1px solid var(--border);padding:var(--s3) var(--s2)}
 .brand{display:flex;align-items:center;gap:var(--s2);padding:0 var(--s2) var(--s3)}
 .brand .glyph{width:24px;height:24px;flex:0 0 24px;border-radius:var(--radius-sm);
@@ -69,8 +63,8 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .brand .txt{min-width:0}
 .brand b{display:block;font-size:13px;font-weight:600;letter-spacing:-.01em}
 .brand small{display:block;font:11px/1.2 var(--mono);color:var(--subtle)}
-.tablist{display:flex;flex-direction:column;gap:2px}
-.tab-trigger{display:flex;align-items:center;gap:10px;min-height:36px;padding:0 var(--s2);
+.tablist{display:flex;flex-direction:column;gap:2px;overflow:hidden}
+.tab-trigger{display:flex;align-items:center;gap:8px;min-height:30px;padding:0 8px;
   border-radius:var(--radius-sm);color:var(--muted-fg);font-size:13px;font-weight:500;
   text-align:left;transition:background var(--dur) var(--ease),color var(--dur) var(--ease)}
 .tab-trigger:hover{background:var(--muted);color:var(--foreground)}
@@ -85,19 +79,19 @@ button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;
 .status .l .ic{color:var(--subtle)}
 
 .body{flex:1;min-width:0;display:flex;flex-direction:column}
-.topbar{flex:0 0 auto;display:flex;align-items:center;gap:var(--s2);padding:0 var(--s4);
-  height:44px;background:var(--surface);border-bottom:1px solid var(--border)}
-.topbar h1{font-size:13px;font-weight:600;letter-spacing:-.01em}
+.topbar{flex:0 0 auto;display:flex;align-items:center;gap:var(--s2);padding:0 var(--s3);
+  height:36px;background:var(--surface);border-bottom:1px solid var(--border)}
+.topbar h1{font-size:12px;font-weight:600;letter-spacing:-.01em}
 .topbar .sep{width:1px;height:16px;background:var(--border)}
 .topbar .grow{flex:1}
-main{flex:1;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5) 40px}
+main{flex:1;overflow:auto;overscroll-behavior:contain;padding:var(--s3) var(--s4) 24px}
 .view{display:none;max-width:1180px}
 .view[data-active="true"]{display:block}
 </style>
 <style>
 /* ============================================================== components */
-.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;min-height:32px;
-  padding:0 var(--s3);border-radius:var(--radius-sm);border:1px solid var(--border-strong);
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:27px;
+  padding:0 9px;border-radius:var(--radius-sm);border:1px solid var(--border-strong);
   background:var(--surface);color:var(--foreground);font-size:12.5px;font-weight:550;
   transition:background var(--dur) var(--ease),border-color var(--dur) var(--ease),
              opacity var(--dur) var(--ease)}
@@ -111,8 +105,8 @@ main{flex:1;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5
 .btn-ghost:hover{background:var(--muted);color:var(--foreground);border-color:var(--border)}
 .btn-destructive{color:var(--destructive);border-color:color-mix(in srgb,var(--destructive) 45%,var(--border))}
 .btn-destructive:hover{background:color-mix(in srgb,var(--destructive) 14%,transparent)}
-.btn-icon{width:32px;padding:0;flex:0 0 32px}
-.btn-xs{min-height:26px;padding:0 var(--s2);font-size:11.5px}
+.btn-icon{width:27px;padding:0;flex:0 0 27px}
+.btn-xs{min-height:22px;padding:0 7px;font-size:11px}
 .btn-xs.btn-icon{width:26px;flex:0 0 26px}
 .btn-group{display:inline-flex;border:1px solid var(--border-strong);border-radius:var(--radius-sm);
   overflow:hidden;background:var(--surface)}
@@ -124,18 +118,18 @@ main{flex:1;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5
 
 .card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius)}
 .card+.card{margin-top:var(--s3)}
-.card-head{display:flex;align-items:center;gap:var(--s2);padding:9px var(--s3);
+.card-head{display:flex;align-items:center;gap:var(--s2);padding:7px 9px;
   border-bottom:1px solid var(--border)}
 .card-head h2{font-size:11px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;
   color:var(--muted-fg)}
 .card-head .grow{flex:1}
-.card-body{padding:var(--s3)}
+.card-body{padding:9px}
 .card-body.tight{padding:0}
 .cols{display:grid;gap:var(--s3);grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
 
-.badge{display:inline-flex;align-items:center;gap:6px;height:20px;padding:0 8px;
+.badge{display:inline-flex;align-items:center;gap:5px;height:17px;padding:0 7px;
   border-radius:var(--radius-full);border:1px solid var(--border-strong);background:var(--surface);
-  font-size:11px;font-weight:550;color:var(--muted-fg);white-space:nowrap}
+  font-size:10.5px;font-weight:550;color:var(--muted-fg);white-space:nowrap}
 .badge .dot{width:6px;height:6px;flex:0 0 6px;border-radius:50%;background:currentColor}
 .badge[data-tone="ok"]{color:var(--primary);border-color:color-mix(in srgb,var(--primary) 40%,var(--border));
   background:color-mix(in srgb,var(--primary) 10%,transparent)}
@@ -151,18 +145,18 @@ main{flex:1;overflow:auto;overscroll-behavior:contain;padding:var(--s4) var(--s5
 
 .metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
   border:1px solid var(--border);border-radius:var(--radius);background:var(--card);overflow:hidden}
-.metric{padding:9px var(--s3);border-left:1px solid var(--border)}
+.metric{padding:7px 10px;border-left:1px solid var(--border)}
 .metric:first-child{border-left:0}
-.metric .k{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle)}
-.metric .v{font:600 19px/1.25 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
-.metric .n{font-size:11px;color:var(--muted-fg)}
+.metric .k{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle)}
+.metric .v{font:600 16px/1.25 var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+.metric .n{font-size:10px;color:var(--muted-fg)}
 .grid-cards{display:grid;gap:var(--s3);grid-template-columns:repeat(auto-fit,minmax(336px,1fr))}
 
-table{width:100%;border-collapse:separate;border-spacing:0;font-size:12.5px}
+table{width:100%;border-collapse:separate;border-spacing:0;font-size:11.5px}
 thead th{position:sticky;top:0;z-index:1;background:var(--card);text-align:left;
-  font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);
-  padding:8px var(--s3);border-bottom:1px solid var(--border-strong);white-space:nowrap}
-tbody td{padding:7px var(--s3);border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
+  font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--subtle);
+  padding:6px 8px;border-bottom:1px solid var(--border-strong);white-space:nowrap}
+tbody td{padding:5px 8px;border-bottom:1px solid var(--border);vertical-align:middle;white-space:nowrap}
 tbody tr:last-child td{border-bottom:0}
 tbody tr{transition:background 120ms var(--ease)}
 tbody tr:hover{background:color-mix(in srgb,var(--muted) 55%,transparent)}
@@ -268,31 +262,17 @@ pre.out.dim{color:var(--muted-fg)}
 .dialog .actions{display:flex;gap:var(--s2);align-items:center;margin-top:var(--s3);flex-wrap:wrap}
 
 /* ==================================================== responsive + a11y css */
-@media (max-width:860px){
-  /* Deterministic mobile shell: one 100dvh column, content scrolls, nav is a real
-     flex sibling at the end. No fixed/sticky, so it can never drift off-screen. */
-  html,body{height:100dvh;overflow:hidden}
-  .app{display:flex;flex-direction:column;height:100dvh;overflow:hidden}
-  .body{order:1;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
-  main{order:1;flex:1;min-height:0;overflow:auto;padding:var(--s3) var(--s3) 24px}
-  .topbar{flex:0 0 44px}
-  .rail{order:2;flex:0 0 auto;position:static;display:flex;flex-direction:row;
-    align-items:center;gap:2px;width:auto;overflow-x:auto;
-    padding:var(--s1) var(--s2) calc(var(--s1) + var(--sab));
-    border-right:0;border-top:1px solid var(--border);
-    box-shadow:0 -8px 24px rgba(0,0,0,.30)}
-  .mark,.rail .spacer,.status{display:none}
-  .tablist{flex-direction:row;gap:2px;width:100%;justify-content:space-between}
-  .tab-trigger{flex:1 0 auto;min-height:48px;padding:0 10px;justify-content:center;gap:7px;font-size:12px}
+@media (max-width:1000px){
+  .rail{width:120px;flex:0 0 120px;padding:6px 5px}
+  .brand{padding:0 4px 8px}
+  .brand b{font-size:12px}
+  .tab-trigger{font-size:11px;gap:6px;min-height:28px}
   .tab-trigger .count{display:none}
-  .cols,.grid-cards{grid-template-columns:1fr}
-  .metric{padding:8px 10px}
-  .metric .v{font-size:16px}
-  .metrics{grid-template-columns:repeat(2,1fr)}
-  .track{width:88px;flex-basis:88px}
-  .disclose-in{gap:var(--s3)}
+  main{padding:8px 10px 14px}
+  .track{width:70px;flex-basis:70px}
+  tbody td,thead th{padding-left:6px;padding-right:6px}
 }
-@media (min-width:861px){ .hide-lg{display:none} }
+
 @media (prefers-reduced-motion:reduce){
   *,*::before,*::after{animation-duration:1ms!important;animation-iteration-count:1!important;
     transition-duration:1ms!important}
@@ -344,13 +324,10 @@ pre.out.dim{color:var(--muted-fg)}
       <button class="tab-trigger" role="tab" data-view="requests" aria-selected="false">
         <svg class="ic" aria-hidden="true"><use href="#i-activity"/></svg> Requests
         <span class="count num" id="navLive">0</span></button>
-      <button class="tab-trigger" role="tab" data-view="models" aria-selected="false">
-        <svg class="ic" aria-hidden="true"><use href="#i-box"/></svg> Models</button>
-      <button class="tab-trigger" role="tab" data-view="console" aria-selected="false">
-        <svg class="ic" aria-hidden="true"><use href="#i-terminal"/></svg> Console</button>
       <button class="tab-trigger" role="tab" data-view="settings" aria-selected="false">
         <svg class="ic" aria-hidden="true"><use href="#i-sliders"/></svg> Settings</button>
     </div>
+  </aside>
     <span class="spacer"></span>
     <div class="status" role="status" aria-live="polite">
       <div class="l"><svg class="ic ic-sm" aria-hidden="true"><use href="#i-server"/></svg>
@@ -369,14 +346,9 @@ pre.out.dim{color:var(--muted-fg)}
   <div class="body">
     <div class="topbar">
       <h1 id="title">Overview</h1>
-      <span class="sep hide-sm"></span>
-      <span class="hint num" id="meta"></span>
       <span class="grow"></span>
       <button class="btn btn-xs" onclick="refresh(true)" aria-label="Refresh now">
-        <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg></button>
-      <button class="btn btn-xs" id="btnSrv" onclick="toggleServer()">
-        <svg class="ic ic-sm" aria-hidden="true"><use href="#i-power"/></svg>
-        <span id="btnSrvTx">stop</span></button>
+        <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh</button>
     </div>
     <main>
       <section class="view" id="v-overview" data-active="true" role="tabpanel" aria-label="Overview">
@@ -424,11 +396,10 @@ pre.out.dim{color:var(--muted-fg)}
         <div class="card">
           <div class="card-head">
             <button class="btn btn-xs btn-primary" onclick="openLogin()">
-              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg> Sign in</button>
-            <button class="btn btn-xs" onclick="openPat()">
-              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-key"/></svg> PAT</button>
-            <button class="btn btn-xs btn-ghost" onclick="refreshModelsAll()">
-              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg> models</button>
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-plus"/></svg> Add account</button>
+            <button class="btn btn-xs" onclick="openPat()">PAT</button>
+            <button class="btn btn-xs" onclick="refreshModelsAll()">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg> Refresh accounts</button>
             <span class="grow"></span>
             <span style="position:relative;display:inline-flex;align-items:center">
               <svg class="ic ic-sm" aria-hidden="true" style="position:absolute;left:8px;opacity:.6">
@@ -472,141 +443,54 @@ pre.out.dim{color:var(--muted-fg)}
         </div>
       </section>
 
-      <section class="view" id="v-models" role="tabpanel" aria-label="Models">
-        <div class="cols">
-          <div class="card">
-            <div class="card-head"><h2>Catalog</h2><span class="grow"></span>
-              <span class="hint num" id="modelCount"></span></div>
-            <div class="tbl-wrap"><table><thead><tr><th>key</th><th>name</th><th>reason</th>
-              <th>served by</th></tr></thead><tbody id="modelRows"></tbody></table></div>
-          </div>
-          <div class="card">
-            <div class="card-head"><h2>Allow-lists</h2><span class="grow"></span>
-              <span class="hint">a model chip off = that account refuses it</span></div>
-            <div class="card-body tight" id="modelPerms"></div>
-          </div>
-        </div>
-      </section>
-
-      <section class="view" id="v-console" role="tabpanel" aria-label="Console">
-        <div class="card">
-          <div class="card-body">
-            <div class="pair">
-              <div><label class="fl" for="cModel">Model</label><select class="field" id="cModel"></select></div>
-              <div><label class="fl" for="cAcct">Account</label>
-                <select class="field" id="cAcct"><option value="">auto — round-robin pool</option></select></div>
-              <div><label class="fl" for="cEffort">Reasoning effort</label>
-                <select class="field" id="cEffort"><option>high</option><option selected>medium</option>
-                  <option>low</option></select></div>
-              <div><label class="fl">Options</label>
-                <label class="switch"><input type="checkbox" id="cStream" checked>
-                  <span class="tr" aria-hidden="true"></span><span class="tx">stream response</span></label></div>
-            </div>
-            <div style="margin-top:12px"><label class="fl" for="cPrompt">Prompt</label>
-              <textarea class="field" id="cPrompt" spellcheck="false">Reply with exactly two short sentences.</textarea></div>
-            <div style="display:flex;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap">
-              <button class="btn btn-primary" id="cRun" onclick="runTest()">
-                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-play"/></svg> Send</button>
-              <button class="btn" id="cStop" onclick="stopTest()" disabled>
-                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-stop"/></svg> Abort</button>
-              <button class="btn btn-ghost" onclick="copy(curlSnippet(true))">
-                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-copy"/></svg> curl</button>
-              <span style="flex:1"></span>
-              <span class="badge" id="cStats" role="status" aria-live="polite">
-                <span class="dot"></span> idle</span>
-            </div>
-          </div>
-        </div>
-        <div class="cols">
-          <div class="card"><div class="card-head"><h2>Answer</h2></div>
-            <div class="card-body"><pre class="out" id="cOut" style="min-height:180px">—</pre></div></div>
-          <div class="card"><div class="card-head"><h2>Stream trace</h2><span class="grow"></span>
-            <span class="hint num" id="cBytes">0 B</span></div>
-            <div class="card-body"><pre class="out dim" id="cRaw" style="min-height:180px">—</pre></div></div>
-        </div>
-      </section>
-
       <section class="view" id="v-settings" role="tabpanel" aria-label="Settings">
         <div class="cols">
           <div class="card">
-            <div class="card-head"><h2>Server</h2></div>
+            <div class="card-head"><h2>Relay</h2></div>
             <div class="card-body">
               <dl class="kv">
                 <dt>state</dt><dd id="stState">—</dd>
+                <dt>address</dt><dd class="mono" id="stLan">—</dd>
                 <dt>uptime</dt><dd id="stUptime">—</dd>
-                <dt>port</dt><dd style="display:flex;gap:8px;align-items:center">
-                  <input class="field num" id="stPort" type="number" min="1024" max="65534"
-                    style="width:110px;min-height:30px">
-                  <button class="btn btn-xs" onclick="applyPort()">apply</button></dd>
-                <dt>lan</dt><dd class="mono" id="stLan">—</dd>
                 <dt>version</dt><dd class="mono" id="stVer">—</dd>
+                <dt>signer</dt><dd id="stSigner">—</dd>
               </dl>
-              <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">
-                <button class="btn btn-xs" onclick="doRestart()">
-                  <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg> restart</button>
-                <button class="btn btn-xs btn-destructive" onclick="regenKey()">
-                  <svg class="ic ic-sm" aria-hidden="true"><use href="#i-key"/></svg> regenerate key</button>
+              <div style="display:flex;gap:6px;margin-top:9px;flex-wrap:wrap">
+                <button class="btn btn-xs" onclick="copy(lanBase()+'/v1')">
+                  <svg class="ic ic-sm" aria-hidden="true"><use href="#i-copy"/></svg> copy endpoint</button>
+                <button class="btn btn-xs" onclick="copy(KEY)">
+                  <svg class="ic ic-sm" aria-hidden="true"><use href="#i-key"/></svg> copy key</button>
               </div>
             </div>
           </div>
           <div class="card">
-            <div class="card-head"><h2>COSY signer</h2></div>
+            <div class="card-head"><h2>Routing</h2><span class="grow"></span>
+              <button class="btn btn-xs btn-primary" onclick="saveTuning()">Save</button></div>
             <div class="card-body">
-              <p class="hint" style="margin-bottom:10px">Requests are signed by the Qoder wasm module
-                inside a hidden WebView. This is the cold path — if it is slow, every request is slow.</p>
-              <dl class="kv"><dt>state</dt><dd id="stSigner">—</dd>
-                <dt>error</dt><dd id="stSignerErr">—</dd></dl>
-              <div style="display:flex;gap:8px;margin-top:12px">
-                <button class="btn btn-xs" onclick="selftest()">
-                  <svg class="ic ic-sm" aria-hidden="true"><use href="#i-activity"/></svg> run self-test</button>
-              </div>
-              <pre class="out" id="stTest" style="margin-top:10px" hidden></pre>
+              <div><label class="fl" for="tFtt">failover timeout — <span id="lblFtt"></span></label>
+                <input class="range" type="range" id="tFtt" min="5" max="120" step="1"
+                  oninput="lbl('tFtt','lblFtt','s')"></div>
+              <div style="margin-top:8px"><label class="fl" for="tHb">heartbeat — <span id="lblHb"></span></label>
+                <input class="range" type="range" id="tHb" min="2" max="30" step="1"
+                  oninput="lbl('tHb','lblHb','s')"></div>
+              <div style="margin-top:8px"><label class="fl" for="tCd">cooldown — <span id="lblCd"></span></label>
+                <input class="range" type="range" id="tCd" min="0" max="180" step="5"
+                  oninput="lbl('tCd','lblCd','s')"></div>
+              <div style="margin-top:8px"><label class="fl" for="tAll">request budget — <span id="lblAll"></span></label>
+                <input class="range" type="range" id="tAll" min="30" max="1800" step="30"
+                  oninput="lbl('tAll','lblAll','s')"></div>
+              <div style="margin-top:9px"><button class="btn btn-xs" onclick="clearCooldowns()">
+                <svg class="ic ic-sm" aria-hidden="true"><use href="#i-refresh"/></svg> clear cooldowns</button></div>
             </div>
           </div>
         </div>
-
         <div class="card">
-          <div class="card-head"><h2>Routing</h2><span class="grow"></span>
-            <button class="btn btn-xs btn-ghost" onclick="clearCooldowns()">clear cooldowns</button>
-            <button class="btn btn-xs btn-primary" onclick="saveTuning()">save</button></div>
-          <div class="card-body">
-            <p class="hint" style="margin-bottom:14px">These knobs decide how fast a stalled account is
-              abandoned. Clients only ever wait on the heartbeat, never on a dead upstream.</p>
-            <div class="cols">
-              <div class="stack">
-                <div><label class="fl" for="tFtt">fail over after no upstream headers —
-                  <span id="lblFtt"></span></label>
-                  <input class="range" type="range" id="tFtt" min="5" max="120" step="1"
-                    oninput="lbl('tFtt','lblFtt','s')"></div>
-                <div><label class="fl" for="tHb">SSE heartbeat interval —
-                  <span id="lblHb"></span></label>
-                  <input class="range" type="range" id="tHb" min="2" max="30" step="1"
-                    oninput="lbl('tHb','lblHb','s')"></div>
-                <div><label class="fl" for="tCd">cooldown after a failure —
-                  <span id="lblCd"></span></label>
-                  <input class="range" type="range" id="tCd" min="0" max="180" step="5"
-                    oninput="lbl('tCd','lblCd','s')"></div>
-              </div>
-              <div class="stack">
-                <div><label class="fl" for="tAtt">max accounts tried per request —
-                  <span id="lblAtt"></span></label>
-                  <input class="range" type="range" id="tAtt" min="1" max="8" step="1"
-                    oninput="lbl('tAtt','lblAtt','')"></div>
-                <div><label class="fl" for="tAll">total budget per request —
-                  <span id="lblAll"></span></label>
-                  <input class="range" type="range" id="tAll" min="30" max="1800" step="30"
-                    oninput="lbl('tAll','lblAll','s')"></div>
-                <div><label class="fl">appearance</label>
-                  <span class="btn-group" role="group" aria-label="Theme">
-                    <button data-th="dark" onclick="setTheme('dark')">Dark</button>
-                    <button data-th="light" onclick="setTheme('light')">Light</button>
-                    <button data-th="auto" onclick="setTheme('auto')">Auto</button></span></div>
-              </div>
-            </div>
-          </div>
+          <div class="card-head"><h2>Client</h2><span class="grow"></span>
+            <button class="btn btn-xs btn-ghost" onclick="copy(el('stClient').textContent)">
+              <svg class="ic ic-sm" aria-hidden="true"><use href="#i-copy"/></svg> copy</button></div>
+          <div class="card-body"><pre class="out" id="stClient"></pre></div>
         </div>
-
-              </section>
+      </section>
     </main>
   </div>
 </div>
@@ -669,6 +553,7 @@ let openAcc = localStorage.getItem("qr.openAcc") || "";
    derives from a server timestamp goes through SKEW, measured fresh on each poll. */
 let SKEW = 0;
 const nowMs = () => Date.now() + SKEW;
+const compact = () => innerWidth <= 860;      // phone-width tables show less, and fit
 
 /* -------------------------------------------------------------- primitives */
 const fmt = (n) => { n = Number(n || 0);
@@ -738,24 +623,28 @@ function tape(ev, scale){
   const waited = ev.ttfb == null || ev.ttfb < 0;
   const wait = waited ? total : ev.ttfb;
   const run = waited ? 0 : Math.max(0, total - wait);
+  const capText = ev.state === "failover" ? "no answer"
+    : compact() ? dur(total) : dur(wait) + " ▸ " + dur(run);
   return '<span class="tape" role="img" aria-label="' + esc(ev.state) + ", waited " + dur(wait) +
-    ", then ran " + dur(run) + ' of ' + dur(total) + '">' + tapeBars(wait, total, scale, ev.state === "failover", false) +
-    '<span class="cap">' + (ev.state === "failover" ? "no answer" : dur(wait) + " ▸ " + dur(run)) + "</span></span>";
+    ", then ran " + dur(run) + ' of ' + dur(total) + '">' +
+    tapeBars(wait, total, scale, ev.state === "failover", false) +
+    '<span class="cap">' + capText + "</span></span>";
 }
 function liveTape(a, scale){
   const total = Math.max(1, a.age != null ? a.age : nowMs() - a.start);
   const waiting = a.state !== "streaming";
   const wait = waiting ? total : a.ttfb;
   const run = waiting ? 0 : Math.max(0, a.runMs != null ? a.runMs : total - a.ttfb);
+  const capText = compact()
+    ? dur(total) + " · " + (a.chunks || 0) + "c"
+    : (waiting ? "waiting " + dur(total) : dur(wait) + " ▸ " + dur(run)) +
+      " · " + (a.chunks || 0) + " chunks";
   return '<span class="tape" role="img" aria-label="request ' + esc(a.state) + ', ' + dur(total) + '">' +
-    tapeBars(wait, total, scale, false, true) +
-    '<span class="cap">' + (waiting ? "waiting " + dur(total) : dur(wait) + " ▸ " + dur(run)) +
-    " · " + (a.chunks || 0) + " chunks</span></span>";
+    tapeBars(wait, total, scale, false, true) + '<span class="cap">' + capText + "</span></span>";
 }
 
 /* ------------------------------------------------------------------- nav */
-const TITLES = { overview:"Overview", accounts:"Accounts", requests:"Requests",
-  models:"Models", console:"Console", settings:"Settings" };
+const TITLES = { overview:"Overview", accounts:"Accounts", requests:"Requests", settings:"Settings" };
 function go(v){
   document.querySelectorAll(".view").forEach(s => s.dataset.active = String(s.id === "v-" + v));
   document.querySelectorAll(".tab-trigger").forEach(b => {
@@ -786,7 +675,7 @@ document.addEventListener("click", (e) => {
   if (!t || t.tagName === "INPUT") return;
   const d = t.dataset;
   const fn = { model:toggleModel, models:refreshModels, uncool:uncool, rename:renameAcct,
-    pin:pinAcct, del:delAcct, expand:expand, probe:probeAcct, refreshone:refreshModels }[d.act];
+    del:delAcct, expand:expand, refreshone:refreshModels }[d.act];
   if (fn) fn(d.id, d.key || d.label);
 });
 document.addEventListener("change", (e) => {
@@ -814,21 +703,17 @@ async function refresh(loud){
   }
 }
 function render(){
-  // the console re-renders on a poll timer — keep long tables and the page in place
   const keep = [];
   document.querySelectorAll(".tbl-wrap,main").forEach(n => keep.push([n, n.scrollLeft, n.scrollTop]));
-  const sx = window.scrollX, sy = window.scrollY;
-  renderShell(); renderOverview(); renderAccounts(); renderRequests();
-  renderModels(); renderConsole(); renderSettings();
+  renderShell(); renderOverview(); renderAccounts(); renderRequests(); renderSettings();
   keep.forEach(p => { if (p[0].isConnected) { p[0].scrollLeft = p[1]; p[0].scrollTop = p[2]; } });
-  window.scrollTo(sx, sy);
 }
 
 function setTxt(id, v){ const n = el(id); if (n) n.textContent = v; }
 function setHtml(id, v){ const n = el(id); if (n) n.innerHTML = v; }
 function renderShell(){
   const st = DATA.status, u = DATA.usage, act = u.active || [];
-  setTxt("ver", "v" + (st.version || "0.2.5"));
+  setTxt("ver", "v" + (st.version || "0.3.0"));
   setTxt("navAcc", st.accounts || 0);
   setTxt("navLive", act.length);
   setTxt("fState", st.running ? (act.length ? act.length + " live" : "running") : "stopped");
@@ -860,11 +745,6 @@ function startPolling(){
 function scaleOf(list){
   const v = list.map(e => Math.max(e.ms || 0, e.ttfb || 0)).filter(x => x > 0);
   return Math.max(2000, v.length ? quant(v, 0.95) : 8000);
-}
-function miniTable(cols, rows){
-  return '<div class="tbl-wrap"><table><thead><tr>' +
-    cols.map(c => "<th" + (c.rt ? ' class="rt"' : "") + ">" + esc(c.t) + "</th>").join("") +
-    "</tr></thead><tbody>" + rows.join("") + "</tbody></table></div>";
 }
 function renderOverview(){
   setHtml("ovPool", (DATA.usage.accounts || []).map(a =>
@@ -936,7 +816,7 @@ function detail(a){
       (a.models.length ? "allow-list active" : "serving everything") + "</div>" +
       '<div class="chip-set">' + (chips || '<span class="chip">none discovered</span>') + "</div>" +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:12px">' +
-        act("refreshone", svg("refresh", "ic-sm") + " models") +
+        act("refreshone", "refresh models") +
         (cool(a) ? act("uncool", "clear cooldown", "btn-ghost") : "") +
         act("rename", "rename") +
         act("del", "remove", "btn-destructive") +
@@ -951,11 +831,12 @@ function renderRequests(){
   const hist = DATA.usage.recent || [];
   const scale = scaleOf(hist.slice(0, 40));
   setHtml("reqLive", act.length
-    ? '<div class="tbl-wrap"><table id="liveTable"><thead><tr><th>account</th><th>model</th>' +
-      '<th>state</th><th>tape</th><th class="rt">tok in→out</th></tr></thead><tbody>' +
+    ? '<div class="tbl-wrap"><table id="liveTable"><thead><tr><th>account</th>' +
+      '<th>state</th><th>tape</th><th class="rt">data</th></tr></thead><tbody>' +
       act.map(a => "<tr>" +
-        "<td class='nowrap'><b>" + esc(a.account) + "</b> <span class='sub'>try " + (a.attempt || 1) + "</span></td>" +
-        "<td class='mono sub'>" + esc(a.model) + "</td>" +
+        "<td><b>" + esc(a.account) + "</b>" +
+          ((a.attempt || 1) > 1 ? " <span class='sub'>try " + a.attempt + "</span>" : "") +
+          '<div class="mono sub" style="font-size:11px">' + esc(a.model) + "</div></td>" +
         "<td>" + badge(a.state) + "</td><td>" + liveTape(a, scale) + "</td>" +
         "<td class='rt num sub'>" + (a.chunks || 0) + "c · " + fmt(a.bytes) + "</td></tr>").join("") +
       "</tbody></table></div>"
@@ -978,153 +859,32 @@ function renderRequests(){
 }
 function setFilter(f){ filter = f; renderRequests(); }
 
-/* ---------------------------------------------------------------- models */
-function renderModels(){
-  const cats = DATA.catalog || [];
-  el("modelCount").textContent = cats.length + " keys";
-  el("modelRows").innerHTML = cats.map(m => "<tr>" +
-    "<td class='mono'><b>" + esc(m.key) + "</b></td>" +
-    "<td class='trunc' style='max-width:170px'>" + esc(m.display_name) + "</td>" +
-    "<td>" + (m.is_reasoning ? '<span class="badge" data-tone="info">yes</span>'
-      : '<span class="badge">no</span>') + "</td>" +
-    "<td class='sub trunc' style='max-width:180px'>" +
-      esc((m.served_by || []).join(", ") || "any enabled account") + "</td></tr>").join("")
-    || '<tr><td colspan="4" class="empty">nothing discovered yet</td></tr>';
-
-  el("modelPerms").innerHTML = (DATA.usage.accounts || []).map(a => {
-    const keys = a.discovered.length ? a.discovered : a.models;
-    return '<div style="padding:11px 12px;border-bottom:1px solid var(--border)">' +
-      '<div style="display:flex;align-items:center;gap:8px">' +
-      '<b style="font-size:12.5px">' + esc(a.label) + "</b>" +
-      '<span class="hint">' + (a.models.length ? a.models.length + " selected" : "all") + "</span>" +
-      '<span style="flex:1"></span>' +
-      '<label class="switch"><input type="checkbox" data-act="universal" data-id="' + esc(a.id) + '"' +
-        (a.universal ? " checked" : "") + '><span class="tr" aria-hidden="true"></span>' +
-        '<span class="tx">universal</span></label></div>' +
-      '<div class="chip-set" style="margin-top:8px">' + keys.map(k =>
-        '<button class="chip" data-act="model" data-id="' + esc(a.id) + '" data-key="' + esc(k) +
-        '" aria-pressed="' + String(!a.models.length || a.models.includes(k)) + '">' + esc(k) + "</button>"
-        ).join("") + "</div></div>";
-  }).join("") || '<div class="empty">no accounts</div>';
-}
-
-/* --------------------------------------------------------------- console */
-function renderConsole(){
-  const models = (DATA.catalog || []).map(m => m.key);
-  const sel = el("cModel"), acct = el("cAcct");
-  const sig = models.join(",");
-  if (sel.dataset.sig !== sig) {
-    const keep = sel.value;
-    sel.innerHTML = models.map(k => '<option value="' + esc(k) + '">' + esc(k) +
-      "</option>").join("");
-    sel.dataset.sig = sig;
-    if (keep && models.indexOf(keep) >= 0) sel.value = keep;
-    else if (models.indexOf("qfmodel") >= 0) sel.value = "qfmodel";
-  }
-  const keepA = acct.value;
-  const list = (DATA.usage.accounts || []).filter(a => a.enabled);
-  const asig = list.map(a => a.id).join(",");
-  if (acct.dataset.sig !== asig) {
-    acct.innerHTML = '<option value="">auto — round-robin pool</option>' +
-      list.map(a => '<option value="' + esc(a.id) + '">' + esc(a.label) + "</option>").join("");
-    acct.dataset.sig = asig;
-  }
-  if (keepA) acct.value = keepA;
-}
-function stopTest(){ if (aborter) aborter.abort(); }
-async function runTest(){
-  const body = { model: el("cModel").value || "qfmodel", stream: el("cStream").checked,
-    messages: [{ role: "user", content: el("cPrompt").value || "ping" }],
-    reasoning_effort: el("cEffort").value };
-  if (el("cAcct").value) body.relay_account = el("cAcct").value;
-  el("cOut").textContent = ""; el("cRaw").textContent = ""; el("cBytes").textContent = "0 B";
-  el("cRun").disabled = true; el("cStop").disabled = false;
-  const st = el("cStats");
-  st.dataset.tone = "live"; st.innerHTML = '<span class="dot"></span> waiting for headers';
-  aborter = new AbortController();
-  const t0 = performance.now();
-  let ttfb = -1, bytes = 0, out = "", raw = [];
-  try {
-    const r = await fetch("/v1/chat/completions", { method: "POST", signal: aborter.signal,
-      headers: { "x-relay-key": KEY, "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error("HTTP " + r.status + " " + (await r.text()).slice(0, 180));
-    const rd = r.body.getReader(), dec = new TextDecoder();
-    let buf = "";
-    while (true) {
-      const chunk = await rd.read();
-      if (chunk.done) break;
-      if (ttfb < 0) { ttfb = performance.now() - t0;
-        st.dataset.tone = "info"; st.innerHTML = '<span class="dot"></span> streaming · ttfb ' + dur(ttfb); }
-      bytes += chunk.value.length; el("cBytes").textContent = fmt(bytes) + " B";
-      buf += dec.decode(chunk.value, { stream: true });
-      let i;
-      while ((i = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
-        if (!line) continue;
-        if (line.charAt(0) === ":") { raw.push(line); continue; }
-        if (line.indexOf("data:") !== 0) continue;
-        const data = line.slice(5).trim();
-        if (data === "[DONE]") { raw.push("data: [DONE]"); continue; }
-        try {
-          const j = JSON.parse(data);
-          raw.push("data " + JSON.stringify(j).slice(0, 120));
-          const d = j.choices && j.choices[0] && j.choices[0].delta;
-          if (d) out += (d.content || d.reasoning_content || "");
-          if (j.usage) raw.push("usage " + JSON.stringify(j.usage));
-        } catch (e) { raw.push("raw " + data.slice(0, 120)); }
-      }
-      el("cOut").textContent = out;
-      el("cOut").scrollTop = el("cOut").scrollHeight;
-      el("cRaw").textContent = raw.slice(-45).join("\n");
-    }
-    st.dataset.tone = "ok";
-    st.innerHTML = '<span class="dot"></span> ' + dur(ttfb) + " ttfb · " +
-      dur(performance.now() - t0) + " total · " + fmt(bytes);
-  } catch (e) {
-    st.dataset.tone = "err"; st.textContent = String(e.message).slice(0, 70);
-    if (!out) el("cOut").textContent = String(e.message);
-  } finally {
-    el("cRun").disabled = false; el("cStop").disabled = true; aborter = null;
-    refresh();
-  }
-}
 
 /* -------------------------------------------------------------- settings */
 function renderSettings(){
-  const c = DATA.config, s = DATA.status;
-  el("stState").innerHTML = s.running
-    ? '<span class="badge" data-tone="ok"><span class="dot"></span>running on :' + s.port + "</span>"
-    : '<span class="badge" data-tone="err">' + esc(c.serverError || "stopped") + "</span>";
-  el("stUptime").textContent = up(s.uptimeMs);
-  el("stLan").textContent = s.lan ? s.lan + ":" + s.port : "no lan address";
-  el("stVer").textContent = s.version || "0.2.1";
-  el("stSigner").textContent = c.signerState || s.signer || "—";
-  el("stSignerErr").textContent = c.signerError || "none";
-  if (document.activeElement !== el("stPort")) el("stPort").value = c.port || s.port;
+  const c = DATA.config, st = DATA.status;
+  setTxt("stState", st.running ? "running on :" + st.port : "stopped");
+  setTxt("stLan", (st.lan ? st.lan + ":" : "127.0.0.1:") + st.port);
+  setTxt("stUptime", up(st.uptimeMs));
+  setTxt("stVer", st.version || "—");
+  setTxt("stSigner", (c.signerState || st.signer || "—") + (c.signerError ? " · " + c.signerError : ""));
+  setTxt("stClient",
+    'base_url = "' + lanBase() + '/v1"\napi_key  = "' + KEY + '"\n\n' +
+    'curl ' + lanBase() + '/v1/chat/completions \\\n  -H "Authorization: Bearer ' + KEY +
+    '" \\\n  -d \'{"model":"qfmodel","messages":[{"role":"user","content":"ping"}]}\'');
   const ae = document.activeElement;
-  if (ae && ae.type === "range") return;              // never fight a slider mid-drag
+  if (ae && ae.type === "range") return;
   el("tFtt").value = Math.round((c.firstTokenMs || 45000) / 1000); lbl("tFtt", "lblFtt", "s");
   el("tHb").value = Math.round((c.heartbeatMs || 8000) / 1000); lbl("tHb", "lblHb", "s");
   el("tCd").value = Math.round((c.cooldownMs || 20000) / 1000); lbl("tCd", "lblCd", "s");
-  el("tAtt").value = c.maxAttempts || 4; lbl("tAtt", "lblAtt", "");
   el("tAll").value = Math.round((c.overallMs || 600000) / 1000); lbl("tAll", "lblAll", "s");
-  const th = localStorage.getItem("qr.theme") || "dark";
-  document.querySelectorAll("button[data-th]").forEach(b => b.dataset.state = b.dataset.th === th ? "on" : "");
 }
 function lbl(a, b, u){ el(b).textContent = el(a).value + u; }
-async function applyPort(){
-  const p = parseInt(el("stPort").value, 10);
-  if (!p) return;
-  toast("moving to port " + p);
-  try { await api("/relay/config", { method: "POST", body: JSON.stringify({ port: p }) }); } catch (e) {}
-  setTimeout(() => { location.href = "http://" + (location.hostname || "127.0.0.1") + ":" + p + "/ui"; }, 1600);
-}
 async function saveTuning(){
   try {
     await api("/relay/config", { method: "POST", body: JSON.stringify({
       firstTokenMs: el("tFtt").value * 1000, heartbeatMs: el("tHb").value * 1000,
-      cooldownMs: el("tCd").value * 1000, maxAttempts: +el("tAtt").value,
-      overallMs: el("tAll").value * 1000 }) });
+      cooldownMs: el("tCd").value * 1000, overallMs: el("tAll").value * 1000 }) });
     toast("routing saved"); refresh();
   } catch (e) { toast("could not save: " + e.message); }
 }
@@ -1132,46 +892,6 @@ function clearCooldowns(){
   api("/relay/config", { method: "POST", body: JSON.stringify({ clearCooldowns: true }) })
     .then(() => { refresh(); toast("cooldowns cleared"); }).catch(e => toast(e.message));
 }
-async function toggleServer(){
-  const want = !DATA.status.running;
-  try {
-    await api("/relay/config", { method: "POST", body: JSON.stringify({ running: want }) });
-    toast(want ? "starting" : "stopping"); setTimeout(refresh, 1400);
-  } catch (e) { toast("failed: " + e.message); }
-}
-function doRestart(){
-  api("/relay/config", { method: "POST", body: JSON.stringify({ running: false }) })
-    .then(() => api("/relay/config", { method: "POST", body: JSON.stringify({ running: true }) }))
-    .then(() => { toast("restarting"); setTimeout(refresh, 1600); }).catch(e => toast(e.message));
-}
-async function regenKey(){
-  if (!confirm("Regenerate the relay key? Every client must be reconfigured.")) return;
-  try {
-    const r = await api("/relay/config", { method: "POST", body: JSON.stringify({ key_regen: true }) });
-    if (!(Native && Native.relayKey)) { KEY = r.key || ""; localStorage.setItem("qr.key", KEY); }
-    toast("new key issued"); refresh();
-  } catch (e) { toast("failed: " + e.message); }
-}
-async function selftest(){
-  const out = el("stTest"); out.hidden = false; out.textContent = "running…";
-  try {
-    const r = await api("/relay/selftest", { method: "POST", body: JSON.stringify({}) });
-    out.textContent = ["account   " + r.account, "token     " + one(r.token),
-      "cosy      " + one(r.cosy), "models    " + one(r.models)].join("\n");
-    refresh();
-  } catch (e) { out.textContent = "failed: " + e.message; }
-}
-function one(o){ return (o.ok ? "ok  " : "FAIL") + "  " + o.ms + "ms" +
-  (o.error ? "  " + o.error : "") + (o.count ? "  " + o.count + " models" : "") +
-  (o.key_chars ? "  key " + o.key_chars + " chars" : ""); }
-function curlSnippet(useConsole){
-  const model = useConsole ? (el("cModel").value || "qfmodel") : "qfmodel";
-  const text = useConsole ? (el("cPrompt").value || "ping").replace(/["']/g, "") : "ping";
-  return "curl -N " + lanBase() + "/v1/chat/completions \\\n  -H \"Authorization: Bearer " + KEY +
-    "\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"model\":\"" + model +
-    '\",\"stream\":true,"messages":[{"role":"user","content":"' + text + '"}]}';
-}
-
 /* ------------------------------------------------------ account mutations */
 async function patchAcct(id, body){
   try { await api("/relay/accounts/" + id, { method: "PUT", body: JSON.stringify(body) }); await refresh(); }
@@ -1197,15 +917,6 @@ function delAcct(id, label){
   api("/relay/accounts/" + id, { method: "DELETE" })
     .then(() => { if (openAcc === id) openAcc = ""; return refresh(); }).catch(e => toast(e.message));
 }
-function pinAcct(id){ go("console"); renderConsole(); el("cAcct").value = id; }
-async function probeAcct(id){
-  toast("self-testing " + id.slice(0, 8) + "…");
-  try {
-    const r = await api("/relay/selftest", { method: "POST", body: JSON.stringify({ account: id }) });
-    toast(r.account + " — cosy " + r.cosy.ms + "ms · models " + (r.models.ok ? r.models.count : r.models.error));
-    refresh();
-  } catch (e) { toast(e.message); }
-}
 async function refreshModels(id){
   toast("refreshing models…");
   try {
@@ -1223,18 +934,6 @@ async function refreshModelsAll(){
 }
 
 /* ------------------------------------------------------------------ theme */
-function setTheme(t){ localStorage.setItem("qr.theme", t); applyTheme(t); renderSettings(); }
-function applyTheme(t){
-  t = t || localStorage.getItem("qr.theme") || "dark";
-  const eff = t === "auto" ? (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark") : t;
-  document.documentElement.dataset.theme = eff;
-  const meta = document.querySelector('meta[name="theme-color"]');
-  if (meta) meta.setAttribute("content", eff === "light" ? "#f7f8fa" : "#0b1120");
-  if (Native && Native.setChrome) Native.setChrome(eff === "light" ? "#f7f8fa" : "#0b1120", eff === "dark");
-}
-matchMedia("(prefers-color-scheme: light)").addEventListener?.("change", () => {
-  if (localStorage.getItem("qr.theme") === "auto") applyTheme("auto");
-});
 
 /* ------------------------------------------------------------------ modals */
 function openMask(id){ const m = el(id); m.dataset.on = "true";
@@ -1285,7 +984,6 @@ async function addPat(){
 
 /* -------------------------------------------------------------------- boot */
 async function boot(){
-  applyTheme();
   let have = false;
   if (Native && Native.relayKey) { KEY = Native.relayKey(); have = !!KEY; }
   const q = new URLSearchParams(location.search).get("key");
@@ -1299,7 +997,7 @@ async function boot(){
   if (!have && !KEY) el("fState").textContent = "no key — open from the app or add ?key=";
   await refresh();
   const h = (location.hash || "").slice(1);
-  go(["overview", "accounts", "requests", "models", "console", "settings"].indexOf(h) >= 0
+  go(["overview", "accounts", "requests", "settings"].indexOf(h) >= 0
     ? h : (localStorage.getItem("qr.view") || "overview"));
   startPolling();
 }

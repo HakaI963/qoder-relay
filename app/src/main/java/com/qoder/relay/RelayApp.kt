@@ -136,6 +136,6 @@ class RelayApp : Application() {
     } catch (_: Exception) { "" }
 
     companion object {
-        const val VERSION = "0.2.6"
+        const val VERSION = "0.3.0"
     }
 }

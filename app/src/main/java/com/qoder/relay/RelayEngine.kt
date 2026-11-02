@@ -11,7 +11,7 @@ class RelayEngine(val repo: AccountRepo) {
     /** model key -> (display name, reasoning) */
     val modelInfo = ConcurrentHashMap<String, Pair<String, Boolean>>()
 
-    val firstTokenMs = 60_000L     // max wait for upstream headers before trying the next account
+    val firstTokenMs = 300_000L    // max wait for upstream headers before trying the next account
     val cooldownMs = 15_000L       // how long a failing account sits out
     val overallMs = 600_000L       // total budget per client request
     val heartbeatMs = 8_000L       // SSE keep-alive comment interval

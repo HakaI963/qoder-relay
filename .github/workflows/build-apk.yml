@@ -15,7 +15,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
-      - name: Gradle assembleDebug
+      - name: Gradle assembleRelease
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
@@ -32,10 +32,10 @@ jobs:
             gh release create keystore-seed --title "keystore seed" --prerelease app/debug.keystore \
               || gh release upload keystore-seed app/debug.keystore --clobber
           fi
-      - run: gradle --no-daemon assembleDebug
+      - run: gradle --no-daemon assembleRelease
       - name: Publish APK as release asset
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create qoder-relay-nightly --title "Qoder Relay nightly" --prerelease 2>/dev/null || true
-          gh release upload qoder-relay-nightly app/build/outputs/apk/debug/app-debug.apk --clobber
+          gh release upload qoder-relay-nightly app/build/outputs/apk/release/app-release.apk --clobber

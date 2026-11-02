@@ -103,9 +103,13 @@ class SseResponse(
     private val extra = LinkedHashMap<String, String>().apply {
         put("Cache-Control", "no-cache, no-transform")
         put("X-Accel-Buffering", "no")
-        put("Connection", "keep-alive")
+        put("Access-Control-Allow-Origin", "*")
+        // one stream per connection: a client that aborted mid-stream can never get a half-read socket back
+        put("Connection", "close")
         putAll(headers)
     }
+
+    init { closeConnection(true) }
 
     override fun send(outputStream: OutputStream) {
         try {

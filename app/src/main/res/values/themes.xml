@@ -1,43 +1,83 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Base.Relay" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="android:statusBarColor">?android:attr/colorBackground</item>
+    <style name="Theme.Relay" parent="Theme.Material3.Dark.NoActionBar">
+        <item name="android:colorBackground">@color/bg</item>
+        <item name="android:windowBackground">@color/bg</item>
+        <item name="colorPrimary">@color/accent</item>
+        <item name="colorOnPrimary">@color/on_accent</item>
+        <item name="colorSecondary">@color/accent</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface2</item>
+        <item name="colorSurfaceContainerHighest">@color/surface2</item>
+        <item name="colorOnSurface">@color/text</item>
+        <item name="colorOnSurfaceVariant">@color/text2</item>
+        <item name="colorOutline">@color/outline</item>
+        <item name="colorError">@color/err</item>
+        <item name="android:statusBarColor">@color/bg</item>
+        <item name="android:navigationBarColor">@color/bg</item>
         <item name="android:windowLightStatusBar">false</item>
+        <item name="materialCardViewStyle">@style/Card</item>
     </style>
 
-    <style name="Theme.Relay.Graphite" parent="Base.Relay">
-        <item name="android:colorBackground">@color/gr_bg</item>
-        <item name="colorSurface">@color/gr_surface</item>
-        <item name="colorSurfaceContainer">@color/gr_sidebar</item>
-        <item name="colorOutline">@color/gr_outline</item>
-        <item name="colorOnSurface">@color/gr_text</item>
-        <item name="colorOnSurfaceVariant">@color/gr_text2</item>
-        <item name="colorPrimary">@color/gr_btn</item>
-        <item name="colorOnPrimary">@color/gr_btn_text</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <style name="Card" parent="Widget.Material3.CardView.Filled">
+        <item name="cardBackgroundColor">@color/surface</item>
+        <item name="cardCornerRadius">18dp</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="strokeColor">@color/outline</item>
+        <item name="cardElevation">0dp</item>
     </style>
 
-    <style name="Theme.Relay.Warm" parent="Base.Relay">
-        <item name="android:colorBackground">@color/wm_bg</item>
-        <item name="colorSurface">@color/wm_surface</item>
-        <item name="colorSurfaceContainer">@color/wm_sidebar</item>
-        <item name="colorOutline">@color/wm_outline</item>
-        <item name="colorOnSurface">@color/wm_text</item>
-        <item name="colorOnSurfaceVariant">@color/wm_text2</item>
-        <item name="colorPrimary">@color/wm_btn</item>
-        <item name="colorOnPrimary">@color/wm_btn_text</item>
-        <item name="android:windowLightStatusBar">true</item>
+    <style name="Label" parent="">
+        <item name="android:textColor">@color/text2</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:letterSpacing">0.06</item>
+        <item name="android:textAllCaps">true</item>
     </style>
 
-    <style name="Theme.Relay.Midnight" parent="Base.Relay">
-        <item name="android:colorBackground">@color/ms_bg</item>
-        <item name="colorSurface">@color/ms_surface</item>
-        <item name="colorSurfaceContainer">@color/ms_sidebar</item>
-        <item name="colorOutline">@color/ms_outline</item>
-        <item name="colorOnSurface">@color/ms_text</item>
-        <item name="colorOnSurfaceVariant">@color/ms_text2</item>
-        <item name="colorPrimary">@color/ms_btn</item>
-        <item name="colorOnPrimary">@color/ms_btn_text</item>
-        <item name="android:windowLightStatusBar">false</item>
+    <style name="Section" parent="">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Mono" parent="">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">monospace</item>
+    </style>
+
+    <style name="StatBox" parent="">
+        <item name="android:layout_width">0dp</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_weight">1</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:background">@drawable/field_bg</item>
+        <item name="android:paddingHorizontal">12dp</item>
+        <item name="android:paddingVertical">10dp</item>
+    </style>
+    <style name="StatValue" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">18sp</item>
+        <item name="android:textStyle">bold</item>
+        <item name="android:text">0</item>
+    </style>
+    <style name="StatLabel" parent="">
+        <item name="android:layout_width">wrap_content</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:textColor">@color/text2</item>
+        <item name="android:textSize">11sp</item>
+    </style>
+    <style name="CopyRow" parent="">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">6dp</item>
+        <item name="android:orientation">horizontal</item>
+        <item name="android:gravity">center_vertical</item>
+        <item name="android:background">@drawable/field_bg</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">4dp</item>
+        <item name="android:paddingVertical">4dp</item>
     </style>
 </resources>

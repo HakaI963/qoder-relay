@@ -2,7 +2,11 @@ package com.qoder.relay
 
 import android.app.Application
 import android.content.Context
-import fi.iki.elonen.NanoHTTPD
+import android.net.ConnectivityManager
+import android.net.Network
+import java.net.Inet4Address
+import java.net.NetworkInterface
+import java.util.Collections
 import java.util.UUID
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -13,129 +17,133 @@ class RelayApp : Application() {
     lateinit var engine: RelayEngine
         private set
     val signer: CosySigner by lazy { CosySigner(this) }
+
+    private val prefs by lazy { getSharedPreferences("relay", Context.MODE_PRIVATE) }
+
     var relayKey: String = ""
         private set
     var port: Int = RelayServer.PORT_DEFAULT
-    var server: RelayServer? = null
-
-    /** epoch ms of process start — surfaced in the dashboard. */
-    var startedAt: Long = System.currentTimeMillis()
         private set
+    /** When off, LAN clients may call without the API key (handy for trusted home networks). */
+    var requireKey: Boolean = true
+        private set
+    /** User intent: should the relay be running? Survives restarts, used by boot receiver + watchdog. */
+    var wantRunning: Boolean
+        get() = prefs.getBoolean("wantRunning", true)
+        set(v) { prefs.edit().putBoolean("wantRunning", v).apply() }
 
-    /** requests currently being served (streaming included). */
+    @Volatile var server: RelayServer? = null
+        private set
+    @Volatile var serverError: String = ""
+        private set
+    @Volatile var startedAt: Long = 0
+        private set
+    @Volatile var lastActivity: Long = 0
+        private set
     val inFlight = AtomicInteger(0)
+
+    /** UI listeners (main thread not guaranteed). */
+    val listeners = mutableSetOf<() -> Unit>()
+    fun notifyChanged() = synchronized(listeners) { listeners.toList() }.forEach { runCatching { it() } }
 
     override fun onCreate() {
         super.onCreate()
-        val prefs = getSharedPreferences("relay", Context.MODE_PRIVATE)
-        relayKey = prefs.getString("key", null) ?: ("sk-relay-" + UUID.randomUUID().toString().replace("-", "")).also {
-            prefs.edit().putString("key", it).apply()
-        }
+        relayKey = prefs.getString("key", null) ?: newKey().also { prefs.edit().putString("key", it).apply() }
         port = prefs.getInt("port", RelayServer.PORT_DEFAULT)
+        requireKey = prefs.getBoolean("requireKey", true)
         repo = AccountRepo(this).apply { load() }
         engine = RelayEngine(repo)
-        loadTuning(prefs)
+        // statuses from a previous process are stale — give every account a fresh chance
+        repo.accounts.forEach { if (it.status == "error") it.status = "unknown"; it.cooldownUntil = 0 }
         signer.prewarm()
-        // warm COSY fields for the first enabled account so request #1 is not a cold start
+        watchNetwork()
         Thread {
-            try {
-                if (signer.ready(30_000)) {
-                    engine.usableFor(null).firstOrNull()?.let { QoderClient.ensureCosyFields(it, signer) }
+            runCatching {
+                if (signer.ready(30_000)) repo.accounts.firstOrNull { it.enabled }?.let {
+                    QoderClient.ensureToken(it); QoderClient.ensureCosyFields(it, signer); repo.save()
                 }
-            } catch (_: Exception) { }
-        }.apply { isDaemon = true; name = "cosy-warm"; start() }
+            }
+        }.apply { isDaemon = true; name = "cosy-warm" }.start()
     }
 
-    fun startServer(): RelayServer {
-        server?.stop()
-        val s = RelayServer(this, engine, port)
-        s.start(NanoHTTPD.SOCKET_READ_TIMEOUT, false)
-        server = s
-        startedAt = System.currentTimeMillis()
-        serverError = ""
-        return s
-    }
-
-    var serverError: String = ""
-    fun isRunning(): Boolean = server != null
-
-    /**
-     * Port changes / restarts are deferred: they must never be executed from inside a request
-     * thread of the very server being restarted, or the dashboard's own POST would be cut off
-     * before it can reply.
-     */
-    fun changePort(newPort: Int) {
-        if (newPort in 1024..65534 && newPort != port) {
-            port = newPort
-            getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putInt("port", newPort).apply()
-            restartSoon()
-        }
-    }
-
-    fun restartSoon(delayMs: Long = 400) {
-        Thread {
-            Thread.sleep(delayMs)
-            try { server?.stop() } catch (_: Exception) { }
-            server = null
-            try { signer.resetTransport() } catch (_: Exception) { }
-            ensureServer()
-        }.apply { isDaemon = true; name = "relay-restart"; start() }
-    }
-
-    fun stopServer() {
-        try { server?.stop() } catch (_: Exception) { }
+    @Synchronized
+    fun ensureServer(): Boolean {
+        val s = server
+        if (s != null && s.isAlive) return true
+        runCatching { s?.stop() }
         server = null
+        return try {
+            val n = RelayServer(this, engine, port)
+            n.start(RelayServer.SOCKET_TIMEOUT_MS, false)
+            server = n
+            startedAt = System.currentTimeMillis()
+            serverError = ""
+            true
+        } catch (e: Exception) {
+            serverError = if (e is java.net.BindException) "Port $port is already in use" else (e.message ?: "start failed")
+            false
+        }.also { notifyChanged() }
     }
 
-    fun stopServerAsync() {
-        Thread {
-            Thread.sleep(400)
-            stopServer()
-        }.apply { isDaemon = true; name = "relay-stop"; start() }
+    @Synchronized
+    fun stopServer() {
+        runCatching { server?.stop() }
+        server = null
+        notifyChanged()
+    }
+
+    fun isRunning(): Boolean = server?.isAlive == true
+
+    fun setPort(p: Int): Boolean {
+        if (p !in 1024..65535) return false
+        if (p == port) return true
+        port = p
+        prefs.edit().putInt("port", p).apply()
+        if (server != null) { stopServer(); ensureServer() }
+        return true
+    }
+
+    fun setRequireKey(v: Boolean) {
+        requireKey = v
+        prefs.edit().putBoolean("requireKey", v).apply()
     }
 
     fun regenerateKey() {
-        relayKey = "sk-relay-" + UUID.randomUUID().toString().replace("-", "")
-        getSharedPreferences("relay", Context.MODE_PRIVATE).edit().putString("key", relayKey).apply()
+        relayKey = newKey()
+        prefs.edit().putString("key", relayKey).apply()
     }
 
-    fun ensureServer() {
-        if (server != null) return
-        try { startServer() } catch (e: Exception) {
-            serverError = e.message ?: "start failed"
+    fun markActivity() { lastActivity = System.currentTimeMillis() }
+
+    private fun newKey() = "sk-relay-" + UUID.randomUUID().toString().replace("-", "")
+
+    /** Drop pooled upstream sockets whenever the network changes — stale sockets were a main cause of hangs. */
+    private fun watchNetwork() {
+        runCatching {
+            val cm = getSystemService(ConnectivityManager::class.java)
+            cm.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) { QoderClient.onNetworkChanged(); notifyChanged() }
+                override fun onLost(network: Network) { QoderClient.onNetworkChanged(); notifyChanged() }
+            })
         }
     }
 
-    fun loadTuning(prefs: android.content.SharedPreferences) {
-        engine.firstTokenMs = prefs.getLong("firstTokenMs", engine.firstTokenMs)
-        engine.cooldownMs = prefs.getLong("cooldownMs", engine.cooldownMs)
-        engine.overallMs = prefs.getLong("overallMs", engine.overallMs)
-        engine.heartbeatMs = prefs.getLong("heartbeatMs", engine.heartbeatMs)
-        engine.maxAttempts = prefs.getInt("maxAttempts", engine.maxAttempts)
-    }
-
-    fun saveTuning() {
-        getSharedPreferences("relay", Context.MODE_PRIVATE).edit()
-            .putLong("firstTokenMs", engine.firstTokenMs)
-            .putLong("cooldownMs", engine.cooldownMs)
-            .putLong("overallMs", engine.overallMs)
-            .putLong("heartbeatMs", engine.heartbeatMs)
-            .putInt("maxAttempts", engine.maxAttempts)
-            .apply()
-    }
-
     fun lanAddress(): String = try {
-        val ifaces = java.util.Collections.list(java.net.NetworkInterface.getNetworkInterfaces())
-        val good = ifaces.firstOrNull { it.isUp && !it.isLoopback &&
-            (it.name.startsWith("wlan") || it.name.startsWith("ap") || it.name.startsWith("eth") || it.name.startsWith("rndis")) }
-            ?: ifaces.firstOrNull { it.isUp && !it.isLoopback }
-        good?.let { g ->
-            java.util.Collections.list(g.inetAddresses)
-                .firstOrNull { it is java.net.Inet4Address && !it.isLoopbackAddress }?.hostAddress
+        val ifaces = Collections.list(NetworkInterface.getNetworkInterfaces()).filter { it.isUp && !it.isLoopback }
+        val pick = ifaces.sortedBy { i ->
+            when {
+                i.name.startsWith("wlan") -> 0
+                i.name.startsWith("ap") || i.name.startsWith("swlan") -> 1
+                i.name.startsWith("eth") || i.name.startsWith("rndis") -> 2
+                else -> 3
+            }
+        }
+        pick.firstNotNullOfOrNull { i ->
+            Collections.list(i.inetAddresses).firstOrNull { it is Inet4Address && !it.isLoopbackAddress }?.hostAddress
         } ?: ""
     } catch (_: Exception) { "" }
 
     companion object {
-        const val VERSION = "0.3.1"
+        const val VERSION = "1.0.0"
     }
 }

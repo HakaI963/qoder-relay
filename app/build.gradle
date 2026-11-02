@@ -5,32 +5,34 @@ plugins {
 
 android {
     namespace 'com.qoder.relay'
-    compileSdk 34
+    compileSdk 35
 
     signingConfigs {
         debug {
-            storeFile file("debug.keystore")
-            storePassword "android"
-            keyAlias "androiddebugkey"
-            keyPassword "android"
+            if (file("debug.keystore").exists()) {
+                storeFile file("debug.keystore")
+                storePassword "android"
+                keyAlias "androiddebugkey"
+                keyPassword "android"
+            }
         }
     }
 
     defaultConfig {
         applicationId "com.qoder.relay"
         minSdk 26
-        targetSdk 34
-        versionCode 10
-        versionName "0.3.1"
+        targetSdk 35
+        versionCode 20
+        versionName "1.0.0"
     }
 
     buildTypes {
         debug {
-            applicationIdSuffix ""
             signingConfig signingConfigs.debug
         }
         release {
             minifyEnabled false
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
@@ -40,6 +42,9 @@ android {
     kotlinOptions {
         jvmTarget = '17'
     }
+    packagingOptions {
+        resources { excludes += ['META-INF/*.kotlin_module', 'META-INF/versions/**'] }
+    }
 }
 
 dependencies {
@@ -47,5 +52,7 @@ dependencies {
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'androidx.core:core-ktx:1.13.1'
     implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'androidx.swiperefreshlayout:swiperefreshlayout:1.1.0'
     implementation 'com.google.android.material:material:1.12.0'
+    testImplementation 'junit:junit:4.13.2'
 }

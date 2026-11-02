@@ -8,6 +8,7 @@ import org.json.JSONObject
 import java.io.File
 import java.security.KeyStore
 import java.util.UUID
+import java.util.concurrent.CopyOnWriteArrayList
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -18,6 +19,7 @@ class Account(
     var label: String = "",
     var region: String = "global",          // global | cn
     var kind: String = "device",            // device | pat
+    var pat: String = "",                   // kept for PAT accounts so the job token can be re-exchanged
     var token: String = "",
     var refreshToken: String = "",
     var expiresAt: Long = 0,                // epoch ms
@@ -27,87 +29,92 @@ class Account(
     var cosyKey: String = "",
     var needsFields: Boolean = true,
     var enabled: Boolean = true,
-    var modelMode: String = "universal",    // universal | per_account
-    var models: MutableList<String> = mutableListOf(),   // model keys this account may serve (empty = all discovered)
-    var discovered: MutableList<String> = mutableListOf(), // last fetched model list from account
-    var universal: Boolean = true,          // participates in universal pool
+    var discovered: MutableList<String> = mutableListOf(),
     var status: String = "unknown",         // active | auth_error | error | unknown
     var lastError: String = "",
     var inTok: Long = 0, var outTok: Long = 0,
-    var reqs: Long = 0, var errs: Long = 0, var failovers: Long = 0,
+    var reqs: Long = 0, var errs: Long = 0,
     var cooldownUntil: Long = 0
 ) {
+    /** Serialises token refresh for this account (refresh tokens rotate — two parallel refreshes kill the account). */
+    val authLock = Any()
+
     fun toJson() = JSONObject().apply {
-        put("id", id); put("label", label); put("region", region); put("kind", kind)
+        put("id", id); put("label", label); put("region", region); put("kind", kind); put("pat", pat)
         put("token", token); put("refreshToken", refreshToken); put("expiresAt", expiresAt)
         put("machineId", machineId); put("uid", uid); put("encInfo", encInfo); put("cosyKey", cosyKey)
-        put("needsFields", needsFields); put("enabled", enabled); put("modelMode", modelMode)
-        put("models", JSONArray(models)); put("discovered", JSONArray(discovered)); put("universal", universal)
-        put("hasCosy", encInfo.isNotEmpty() && cosyKey.isNotEmpty())
+        put("needsFields", needsFields); put("enabled", enabled)
+        put("discovered", JSONArray(discovered))
         put("status", status); put("lastError", lastError)
         put("inTok", inTok); put("outTok", outTok); put("reqs", reqs); put("errs", errs)
-        put("failovers", failovers); put("cooldownUntil", cooldownUntil)
-    }
-    fun publicJson() = JSONObject().apply {
-        put("id", id); put("label", label); put("region", region); put("kind", kind)
-        put("enabled", enabled); put("modelMode", modelMode); put("universal", universal)
-        put("status", status); put("lastError", lastError); put("hasToken", token.isNotEmpty())
-        put("expiresAt", expiresAt); put("inTok", inTok); put("outTok", outTok)
-        put("reqs", reqs); put("errs", errs); put("failovers", failovers)
-        put("cooldownUntil", cooldownUntil)
-        put("models", JSONArray(models))
     }
 
     companion object {
         fun fromJson(o: JSONObject) = Account().apply {
             id = o.optString("id", id); label = o.optString("label", "")
             region = o.optString("region", "global"); kind = o.optString("kind", "device")
+            pat = o.optString("pat", "")
             token = o.optString("token", ""); refreshToken = o.optString("refreshToken", "")
             expiresAt = o.optLong("expiresAt", 0); machineId = o.optString("machineId", machineId)
             uid = o.optString("uid", ""); encInfo = o.optString("encInfo", "")
             cosyKey = o.optString("cosyKey", ""); needsFields = o.optBoolean("needsFields", true)
-            enabled = o.optBoolean("enabled", true); modelMode = o.optString("modelMode", "universal")
-            universal = o.optBoolean("universal", true); status = o.optString("status", "unknown")
-            lastError = o.optString("lastError", "")
+            enabled = o.optBoolean("enabled", true)
+            status = o.optString("status", "unknown"); lastError = o.optString("lastError", "")
             inTok = o.optLong("inTok", 0); outTok = o.optLong("outTok", 0)
-            reqs = o.optLong("reqs", 0); errs = o.optLong("errs", 0); failovers = o.optLong("failovers", 0)
-            cooldownUntil = o.optLong("cooldownUntil", 0)
-            val arr = o.optJSONArray("models")
-            if (arr != null) for (i in 0 until arr.length()) models.add(arr.getString(i))
-            val disc = o.optJSONArray("discovered")
-            if (disc != null) for (i in 0 until disc.length()) discovered.add(disc.getString(i))
+            reqs = o.optLong("reqs", 0); errs = o.optLong("errs", 0)
+            o.optJSONArray("discovered")?.let { for (i in 0 until it.length()) discovered.add(it.getString(i)) }
         }
     }
 }
 
+/**
+ * Account store. Thread-safe list (requests, logins and the UI touch it concurrently) and atomic,
+ * encrypted writes — the old version could corrupt the file on concurrent saves and silently lose
+ * every account on next start.
+ */
 class AccountRepo(ctx: Context) {
     private val file = File(ctx.filesDir, "accounts.enc")
     private val plain = File(ctx.filesDir, "accounts.json")
     private val key: SecretKey? = keystoreKey()
-    val accounts = mutableListOf<Account>()
+    private val ioLock = Any()
+    val accounts: MutableList<Account> = CopyOnWriteArrayList()
 
-    fun load() {
+    fun load() = synchronized(ioLock) {
+        val src = try {
+            when {
+                key != null && file.exists() -> decrypt(file.readBytes())
+                plain.exists() -> plain.readText()
+                else -> return@synchronized
+            }
+        } catch (_: Exception) {
+            // try the backup written before the last successful save
+            try { File(file.path + ".bak").takeIf { it.exists() && key != null }?.let { decrypt(it.readBytes()) } }
+            catch (_: Exception) { null }
+        } ?: return@synchronized
         try {
-            val src = if (key != null && file.exists()) decrypt(file.readBytes())
-                      else if (plain.exists()) plain.readText() else return
             val arr = JSONArray(src)
-            accounts.clear()
-            for (i in 0 until arr.length()) accounts.add(Account.fromJson(arr.getJSONObject(i)))
+            val list = (0 until arr.length()).map { Account.fromJson(arr.getJSONObject(it)) }
+            accounts.clear(); accounts.addAll(list)
         } catch (_: Exception) { }
     }
 
-    fun save() {
+    fun save() = synchronized(ioLock) {
         val arr = JSONArray()
         accounts.forEach { arr.put(it.toJson()) }
         try {
-            if (key != null) file.writeBytes(encrypt(arr.toString()))
-            else plain.writeText(arr.toString())
+            val target = if (key != null) file else plain
+            val bytes = if (key != null) encrypt(arr.toString()) else arr.toString().toByteArray()
+            val tmp = File(target.path + ".tmp")
+            tmp.writeBytes(bytes)
+            if (target.exists()) target.copyTo(File(target.path + ".bak"), overwrite = true)
+            if (!tmp.renameTo(target)) { target.writeBytes(bytes); tmp.delete() }
         } catch (_: Exception) { }
     }
 
     fun find(id: String) = accounts.firstOrNull { it.id == id || it.label == id }
     fun totalIn() = accounts.sumOf { it.inTok }
     fun totalOut() = accounts.sumOf { it.outTok }
+    fun totalReqs() = accounts.sumOf { it.reqs }
 
     private fun keystoreKey(): SecretKey? = try {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
@@ -124,8 +131,7 @@ class AccountRepo(ctx: Context) {
     private fun encrypt(text: String): ByteArray {
         val c = Cipher.getInstance("AES/GCM/NoPadding")
         c.init(Cipher.ENCRYPT_MODE, key!!)
-        val iv = c.iv
-        return iv + c.doFinal(text.toByteArray())
+        return c.iv + c.doFinal(text.toByteArray())
     }
 
     private fun decrypt(bytes: ByteArray): String {
